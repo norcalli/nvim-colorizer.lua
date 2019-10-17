@@ -1,0 +1,109 @@
+*colorizer.lua* Highlight color codes like #RRGGBB and others.
+
+Author: Ashkan Kiani <from-nvim-colorizer.lua@kiani.io>
+
+==============================================================================
+INTRODUCTION                                       *colorizer-lua-introduction*
+
+==============================================================================
+QUICK START                                          *colorizer-lua-quickstart*
+
+Establish the an autocmd to highlight all filetypes.
+>
+  lua require 'colorizer'.setup()
+<
+==============================================================================
+LUA API DEFINITION                                          *colorizer-lua-api*
+
+Assumes the module is imported as `colorizer`
+
+|colorizer-options|                                           *colorizer-options*
+
+The available highlight modes are `foreground`, `background`. The default is
+`background`.
+
+modes:
+- foreground: sets the foreground text color.
+- background: sets the background text color.
+
+Full options list:
+- `no_names`: Disable parsing names like "Blue"
+- `rgb_fn`: Enable parsing `rgb(...)` functions.
+- `mode`: Highlight mode. Valid options: `foreground`,`background`
+
+
+|colorizer.setup|                                               *colorizer.setup*
+
+Easy to use function if you want the full setup without fine grained control.
+Establishes an autocmd for `FileType`s .
+
+PARAMETERS:
+	`filetypes`	 (optional) filetypes to enable. see examples below
+	`default_options`  (optional) |colorizer-options|
+>
+  colorizer.setup([filetypes=nil], [default_options={}])
+
+  " In your VIMRC
+  lua require'colorizer'.setup()
+
+  -- From lua
+  -- Attaches to every FileType mode
+  require 'colorizer'.setup()
+  
+  -- Attach to certain Filetypes, add special configuration for `html`
+  -- Use `background` for everything else.
+  require 'colorizer'.setup {
+    'css';
+    'javascript';
+    html = {
+  	  mode = 'foreground';
+    }
+  }
+  
+  -- Use the `default_options` as the second parameter, which uses
+  -- `foreground` for every mode. This is the inverse of the previous
+  -- setup configuration.
+  require 'colorizer'.setup({
+    'css';
+    'javascript';
+    html = { mode = 'background' };
+  }, { mode = 'foreground' })
+  
+  -- Use the `default_options` as the second parameter, which uses
+  -- `foreground` for every mode. This is the inverse of the previous
+  -- setup configuration.
+  require 'colorizer'.setup {
+    '*'; -- Highlight all files, but customize some others.
+    css = { rgb_fn = true; }; -- Enable parsing rgb(...) functions in css.
+    html = { no_names = true; } -- Disable parsing "names" like Blue or Gray
+  }
+<
+
+|colorizer.highlight_buffer|                          *colorizer.highlight_buffer*
+
+Highlight starting from `line_start` (0-indexed) for each line described by `lines` in the
+buffer `buf` and attach it to the namespace `ns`.
+
+PARAMETERS:
+	`buf`		 buffer id.
+	`ns`		 the namespace id. Create it with `vim.api.create_namespace`
+	`lines`		 the lines to highlight from the buffer.
+	`line_start`	 should be 0-indexed
+	`options`	 (optional) |colorizer-options| to set
+>
+  colorizer.highlight_buffer(buf[, ns=DEFAULT_NAMESPACE], lines, line_start[, rgb_color_table=initialize_colorizer_colors()])
+<
+
+|colorizer.attach_to_buffer|                          *colorizer.attach_to_buffer*
+
+Attach to a buffer and continuously highlight changes.
+
+PARAMETERS:
+	`buf`	 A value of 0 implies the current buffer.
+	`options`	 (optional) |colorizer-options| to set
+>
+  colorizer.attach_to_buffer(buf[, options={}])
+<
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
+
