@@ -1,4 +1,4 @@
--- Trie implementation in luajit
+--- Trie implementation in luajit
 -- Copyright © 2019 Ashkan Kiani
 
 -- This program is free software: you can redistribute it and/or modify

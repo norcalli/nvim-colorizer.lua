@@ -1,0 +1,237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>Reference</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>ldoc</h1>
+
+<ul>
+  <li><a href="../index.html">Index</a></li>
+</ul>
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Functions">Functions</a></li>
+<li><a href="#Fields">Fields</a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="nowrap">
+  <li><strong>colorizer</strong></li>
+  <li><a href="../modules/trie.html">trie</a></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>colorizer</code></h1>
+<p>Highlights terminal CSI ANSI color codes.</p>
+<p></p>
+
+
+<h2><a href="#Functions">Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#highlight_buffer">highlight_buffer (buf[, ns=DEFAULT_NAMESPACE], lines, line_start[, options])</a></td>
+	<td class="summary">Highlight the buffer region.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#attach_to_buffer">attach_to_buffer ([buf=0[, options]])</a></td>
+	<td class="summary">Attach to a buffer and continuously highlight changes.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#setup">setup ([filetypes={'*'}[, default_options]])</a></td>
+	<td class="summary">Easy to use function if you want the full setup without fine grained control.</td>
+	</tr>
+</table>
+<h2><a href="#Fields">Fields</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#DEFAULT_NAMESPACE">DEFAULT_NAMESPACE</a></td>
+	<td class="summary">Default namespace used in `highlight_buffer` and `attach_to_buffer`.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "highlight_buffer"></a>
+    <strong>highlight_buffer (buf[, ns=DEFAULT_NAMESPACE], lines, line_start[, options])</strong>
+    </dt>
+    <dd>
+    Highlight the buffer region.
+Highlight starting from `line_start` (0-indexed) for each line described by `lines` in the
+buffer `buf` and attach it to the namespace `ns`.
+
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">buf</span>
+            <span class="types"><span class="type">integer</span></span>
+         buffer id.
+        </li>
+        <li><span class="parameter">ns</span>
+            <span class="types"><span class="type">integer</span></span>
+         the namespace id. Create it with `vim.api.create_namespace`
+         (<em>default</em> DEFAULT_NAMESPACE)
+        </li>
+        <li><span class="parameter">lines</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.3/manual.html#6.4">{string,...}</a></span>
+         the lines to highlight from the buffer.
+        </li>
+        <li><span class="parameter">line_start</span>
+            <span class="types"><span class="type">integer</span></span>
+         should be 0-indexed
+        </li>
+        <li><span class="parameter">options</span>
+         Configuration options as described in `setup`
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../modules/colorizer.html#setup">setup</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "attach_to_buffer"></a>
+    <strong>attach_to_buffer ([buf=0[, options]])</strong>
+    </dt>
+    <dd>
+    Attach to a buffer and continuously highlight changes.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">buf</span>
+            <span class="types"><span class="type">integer</span></span>
+         A value of 0 implies the current buffer.
+         (<em>default</em> 0)
+        </li>
+        <li><span class="parameter">options</span>
+         Configuration options as described in `setup`
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../modules/colorizer.html#setup">setup</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "setup"></a>
+    <strong>setup ([filetypes={'*'}[, default_options]])</strong>
+    </dt>
+    <dd>
+    Easy to use function if you want the full setup without fine grained control.
+ Setup an autocmd which enables colorizing for the filetypes and options specified.
+<p> By default highlights all FileTypes.
+<p> Example config:
+ ```
+ { 'scss', 'html', css = { rgb_fn = true; }, javascript = { no_names = true } }
+ ```
+<p> You can combine an array and more specific options.
+ Possible options:
+ - `no_names`: Don't highlight names like Blue
+ - `rgb_fn`: Highlight `rgb(...)` functions.
+ - `mode`: Highlight mode. Valid options: `foreground`,`background`
+
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">filetypes</span>
+         A table/array of filetypes to selectively enable and/or customize. By default, enables all filetypes.
+         (<em>default</em> {'*'})
+        </li>
+        <li><span class="parameter">default_options</span>
+            <span class="types"><a class="type" href="https://www.lua.org/manual/5.3/manual.html#6.4">{[string]=string}</a></span>
+         Default options to apply for the filetypes enable.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example"><span class="global">require</span><span class="string">'colorizer'</span>.setup()</pre>
+    </ul>
+
+</dd>
+</dl>
+    <h2 class="section-header "><a name="Fields"></a>Fields</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "DEFAULT_NAMESPACE"></a>
+    <strong>DEFAULT_NAMESPACE</strong>
+    </dt>
+    <dd>
+    Default namespace used in `highlight_buffer` and `attach_to_buffer`.
+ The name is "terminal_highlight"
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <li><a href="../modules/colorizer.html#highlight_buffer">highlight_buffer</a></li>
+         <li><a href="../modules/colorizer.html#attach_to_buffer">attach_to_buffer</a></li>
+    </ul>
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
+<i style="float:right;">Last updated 2019-10-17 16:25:49 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>
