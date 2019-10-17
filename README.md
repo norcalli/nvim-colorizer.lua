@@ -1,6 +1,6 @@
 # colorizer.lua
 
-[![luadoc](https://img.shields.io/badge/luadoc-0.1-blue)](https://norcalli.github.io/luadoc/nvim-colorizer.lua/doc/modules/colorizer.html)
+[![luadoc](https://img.shields.io/badge/luadoc-0.1-blue)](https://norcalli.github.io/luadoc/nvim-colorizer.lua/modules/colorizer.html)
 
 A high-performance color highlighter for Neovim which has **no external dependencies**! Written in performant Luajit.
 
@@ -72,7 +72,7 @@ require 'colorizer'.setup {
 ```
 
 
-For lower level interface, see the [LuaDocs for API details](https://norcalli.github.io/luadoc/nvim-colorizer.lua/doc/modules/colorizer.html) or use `:h colorizer.lua` once installed.
+For lower level interface, see the [LuaDocs for API details](https://norcalli.github.io/luadoc/nvim-colorizer.lua/modules/colorizer.html) or use `:h colorizer.lua` once installed.
 
 ## TODO
 
