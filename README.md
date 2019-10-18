@@ -4,6 +4,8 @@
 
 A high-performance color highlighter for Neovim which has **no external dependencies**! Written in performant Luajit.
 
+![Demo.mp4](https://raw.githubusercontent.com/norcalli/github-assets/master/nvim-colorizer.lua-demo-short.mp4)
+
 ## Installation and Usage
 
 Use your plugin manager or clone directly into your `runtimepath`.
