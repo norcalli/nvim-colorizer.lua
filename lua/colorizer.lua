@@ -151,9 +151,7 @@ local function percent_or_hex(v)
 end
 
 function css_fn.rgb(line, i)
-	if #line < i + css_rgb_fn_minimum_length then
-		return
-	end
+	if #line < i + css_rgb_fn_minimum_length then return end
 	-- TODO this might be able to be improved.
 	local r, g, b, match_end = line:sub(i):match("^rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()")
 	if not r then return end
@@ -167,9 +165,7 @@ end
 
 -- Pattern for rgba() functions from CSS
 function css_fn.rgba(line, i)
-	if #line < i + css_rgba_fn_minimum_length then
-		return
-	end
+	if #line < i + css_rgba_fn_minimum_length then return end
 	-- TODO this might be able to be improved.
 	local r, g, b, a, match_end = line:sub(i):match("^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)()")
 	if not r then return end
@@ -216,9 +212,7 @@ local function hsl_to_rgb(h, s, l)
 end
 
 function css_fn.hsl(line, i)
-	if #line < i + css_hsl_fn_minimum_length then
-		return
-	end
+	if #line < i + css_hsl_fn_minimum_length then return end
 	-- TODO this might be able to be improved.
 	local h, s, l, match_end = line:sub(i):match("^hsl%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)()")
 	if not h then return end
@@ -233,9 +227,7 @@ function css_fn.hsl(line, i)
 end
 
 function css_fn.hsla(line, i)
-	if #line < i + css_hsla_fn_minimum_length then
-		return
-	end
+	if #line < i + css_hsla_fn_minimum_length then return end
 	-- TODO this might be able to be improved.
 	local h, s, l, a, match_end = line:sub(i):match("^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)()")
 	if not h then return end
