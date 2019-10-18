@@ -24,24 +24,6 @@ local function initialize_trie()
 	end
 end
 
-local b_a = string.byte('a')
-local b_z = string.byte('z')
-local b_A = string.byte('A')
-local b_Z = string.byte('Z')
-local b_0 = string.byte('0')
-local b_9 = string.byte('9')
-local b_f = string.byte('f')
-local b_hash = string.byte('#')
-local bnot = bit.bnot
-local band, bor, bxor = bit.band, bit.bor, bit.bxor
-local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
-
--- TODO use lookup table?
-local function byte_is_hex(byte)
-	byte = bor(byte, 0x20)
-	return (byte >= b_0 and byte <= b_9) or (byte >= b_a and byte <= b_f)
-end
-
 --- Determine whether to use black or white text
 -- Ref: https://stackoverflow.com/a/1855903/837964
 -- https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
@@ -66,19 +48,14 @@ local function make_highlight_name(rgb, mode)
 	return table.concat({HIGHLIGHT_NAME_PREFIX, MODE_NAMES[mode], rgb}, '_')
 end
 
-local highlight_cache = {}
-
--- Ref: https://stackoverflow.com/questions/1252539/most-efficient-way-to-determine-if-a-lua-table-is-empty-contains-no-entries
-local function table_is_empty(t)
-	return next(t) == nil
-end
+local HIGHLIGHT_CACHE = {}
 
 local function create_highlight(rgb_hex, options)
 	local mode = options.mode or 'background'
 	-- TODO validate rgb format?
 	rgb_hex = rgb_hex:lower()
 	local cache_key = table.concat({MODE_NAMES[mode], rgb_hex}, "_")
-	local highlight_name = highlight_cache[cache_key]
+	local highlight_name = HIGHLIGHT_CACHE[cache_key]
 	-- Look up in our cache.
 	if not highlight_name then
 		if #rgb_hex == 3 then
@@ -103,25 +80,9 @@ local function create_highlight(rgb_hex, options)
 			end
 			nvim.ex.highlight(highlight_name, "guifg="..fg_color, "guibg=#"..rgb_hex)
 		end
-		highlight_cache[cache_key] = highlight_name
+		HIGHLIGHT_CACHE[cache_key] = highlight_name
 	end
 	return highlight_name
-end
-
---- Highlight a region in a buffer from the attributes specified
-local function highlight_region(buf, ns, highlight_name,
-		 region_line_start, region_byte_start,
-		 region_line_end, region_byte_end)
-	-- TODO should I bother with highlighting normal regions?
-	if region_line_start == region_line_end then
-		nvim.buf_add_highlight(buf, ns, highlight_name, region_line_start, region_byte_start, region_byte_end)
-	else
-		nvim.buf_add_highlight(buf, ns, highlight_name, region_line_start, region_byte_start, -1)
-		for linenum = region_line_start + 1, region_line_end - 1 do
-			nvim.buf_add_highlight(buf, ns, highlight_name, linenum, 0, -1)
-		end
-		nvim.buf_add_highlight(buf, ns, highlight_name, region_line_end, 0, region_byte_end)
-	end
 end
 
 --[[-- Highlight the buffer region.
