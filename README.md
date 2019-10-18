@@ -34,13 +34,23 @@ Additionally, having a Lua API that's available means users can use this as a li
 
 ### Customization
 
-The available highlight modes are `foreground`, `background`. The default is
-`background`.
+```lua
+  DEFAULT_OPTIONS = {
+    RGB     = true;         -- #RGB hex codes
+    RRGGBB  = true;         -- #RRGGBB hex codes
+    names   = true;         -- "Name" codes like Blue
+    rgb_fn  = false;        -- CSS rgb() and rgba() functions
+    hsl_fn  = false;        -- CSS hsl() and hsla() functions
+    css     = false;        -- Enable all features above.
+    css_fn  = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+    -- Available modes: foreground, background
+    mode    = 'background'; -- Set the display mode.
+  }
+```
 
-Full options list:
-- `no_names`: Disable parsing names like "Blue"
-- `rgb_fn`: Enable parsing `rgb(...)` functions.
-- `mode`: Highlight mode. Valid options: `foreground`,`background`
+MODES:
+- `foreground`: sets the foreground text color.
+- `background`: sets the background text color.
 
 For basic setup, you can use a command like the following.
 
@@ -79,6 +89,30 @@ require 'colorizer'.setup {
 
 
 For lower level interface, see the [LuaDocs for API details](https://norcalli.github.io/luadoc/nvim-colorizer.lua/modules/colorizer.html) or use `:h colorizer.lua` once installed.
+
+## Commands
+
+```help
+|:ColorizerAttachToBuffer|
+
+Attach to the current buffer and start highlighting with the settings as
+specified in setup (or the defaults).
+
+If the buffer was already attached (i.e. being highlighted), the settings will
+be reloaded with the ones from setup. This is useful for reloading settings
+for just one buffer.
+
+|:ColorizerDetachFromBuffer|
+
+Stop highlighting the current buffer (detach).
+
+|:ColorizerReloadAllBuffers|
+
+Reload all buffers that are being highlighted with new settings from the setup
+settings (or the defaults). Shortcut for ColorizerAttachToBuffer on every
+buffer.
+```
+
 
 ## Caveats
 

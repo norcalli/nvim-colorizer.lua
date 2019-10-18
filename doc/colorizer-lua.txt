@@ -1,5 +1,7 @@
 *colorizer.lua* Highlight color codes like #RRGGBB and others.
 
+Minimum version of neovim: 0.4.0
+
 Author: Ashkan Kiani <from-nvim-colorizer.lua@kiani.io>
 
 ==============================================================================
@@ -11,7 +13,34 @@ QUICK START                                          *colorizer-lua-quickstart*
 Establish the an autocmd to highlight all filetypes.
 >
   lua require 'colorizer'.setup()
+
+  " Highlight using all available possible highlight modes in every filetype
+  lua require 'colorizer'.setup(nil, { css = true; })
 <
+
+==============================================================================
+COMMANDS                                                   *colorizer-commands*
+
+|:ColorizerAttachToBuffer|                             *:ColorizerAttachToBuffer*
+
+Attach to the current buffer and start highlighting with the settings as
+specified in setup (or the defaults).
+
+If the buffer was already attached (i.e. being highlighted), the settings will
+be reloaded with the ones from setup. This is useful for reloading settings
+for just one buffer.
+
+
+|:ColorizerDetachFromBuffer|                         *:ColorizerDetachFromBuffer*
+
+Stop highlighting the current buffer (detach).
+
+|:ColorizerReloadAllBuffers|                         *:ColorizerReloadAllBuffers*
+
+Reload all buffers that are being highlighted with new settings from the setup
+settings (or the defaults). Shortcut for ColorizerAttachToBuffer on every
+buffer.
+
 ==============================================================================
 LUA API DEFINITION                                          *colorizer-lua-api*
 
@@ -19,17 +48,23 @@ Assumes the module is imported as `colorizer`
 
 |colorizer-options|                                           *colorizer-options*
 
-The available highlight modes are `foreground`, `background`. The default is
-`background`.
+>
+  DEFAULT_OPTIONS = {
+    RGB     = true;         -- #RGB hex codes
+    RRGGBB  = true;         -- #RRGGBB hex codes
+    names   = true;         -- "Name" codes like Blue
+    rgb_fn  = false;        -- CSS rgb() and rgba() functions
+    hsl_fn  = false;        -- CSS hsl() and hsla() functions
+    css     = false;        -- Enable all features above.
+    css_fn  = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+    -- Available modes: foreground, background
+    mode    = 'background'; -- Set the display mode.
+  }
+<
 
-modes:
-- foreground: sets the foreground text color.
-- background: sets the background text color.
-
-Full options list:
-- `no_names`: Disable parsing names like "Blue"
-- `rgb_fn`: Enable parsing `rgb(...)` functions.
-- `mode`: Highlight mode. Valid options: `foreground`,`background`
+MODES:
+- 'foreground': sets the foreground text color.
+- 'background': sets the background text color.
 
 
 |colorizer.setup|                                               *colorizer.setup*
@@ -75,7 +110,7 @@ PARAMETERS:
   require 'colorizer'.setup {
     '*'; -- Highlight all files, but customize some others.
     css = { rgb_fn = true; }; -- Enable parsing rgb(...) functions in css.
-    html = { no_names = true; } -- Disable parsing "names" like Blue or Gray
+    html = { names = false; } -- Disable parsing "names" like Blue or Gray
   }
 <
 
@@ -89,18 +124,22 @@ PARAMETERS:
 	`ns`		 the namespace id. Create it with `vim.api.create_namespace`
 	`lines`		 the lines to highlight from the buffer.
 	`line_start`	 should be 0-indexed
-	`options`	 (optional) |colorizer-options| to set
+	`options`	 |colorizer-options| to set. REQUIRED!
 >
-  colorizer.highlight_buffer(buf[, ns=DEFAULT_NAMESPACE], lines, line_start[, rgb_color_table=initialize_colorizer_colors()])
+  colorizer.highlight_buffer(buf[, ns=DEFAULT_NAMESPACE],
+		  lines, line_start, options)
 <
 
 |colorizer.attach_to_buffer|                          *colorizer.attach_to_buffer*
 
 Attach to a buffer and continuously highlight changes.
 
+If you don't specify `options`, it will be set from the setup options if
+specified or the default in |colorizer-options|.
+
 PARAMETERS:
 	`buf`	 A value of 0 implies the current buffer.
-	`options`	 (optional) |colorizer-options| to set
+	`options`  (optional) |colorizer-options| to set.
 >
   colorizer.attach_to_buffer(buf[, options={}])
 <
