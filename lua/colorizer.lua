@@ -16,6 +16,12 @@ local DEFAULT_NAMESPACE = nvim.create_namespace 'colorizer'
 
 local COLOR_MAP
 local COLOR_TRIE
+local CSS_FUNCTION_TRIE = Trie()
+for _, v in ipairs{'rgb', 'rgba', 'hsl', 'hsla'} do CSS_FUNCTION_TRIE:insert(v) end
+local RGB_FUNCTION_TRIE = Trie()
+for _, v in ipairs{'rgb', 'rgba'} do RGB_FUNCTION_TRIE:insert(v) end
+local HSL_FUNCTION_TRIE = Trie()
+for _, v in ipairs{'hsl', 'hsla'} do HSL_FUNCTION_TRIE:insert(v) end
 
 --- Setup the COLOR_MAP and COLOR_TRIE
 local function initialize_trie()
@@ -54,15 +60,16 @@ local function color_is_bright(r, g, b)
 end
 
 local DEFAULT_OPTIONS = {
-	RGB     = true;         -- #RGB hex codes
-	RRGGBB  = true;         -- #RRGGBB hex codes
-	names   = true;         -- "Name" codes like Blue
-	rgb_fn  = false;        -- CSS rgb() and rgba() functions
-	hsl_fn  = false;        -- CSS hsl() and hsla() functions
-	css     = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
-	css_fn  = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+	RGB      = true;         -- #RGB hex codes
+	RRGGBB   = true;         -- #RRGGBB hex codes
+	names    = true;         -- "Name" codes like Blue
+	RRGGBBAA = false;        -- #RRGGBBAA hex codes
+	rgb_fn   = false;        -- CSS rgb() and rgba() functions
+	hsl_fn   = false;        -- CSS hsl() and hsla() functions
+	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
+	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
 	-- Available modes: foreground, background
-	mode    = 'background'; -- Set the display mode.
+	mode     = 'background'; -- Set the display mode.
 }
 
 local HIGHLIGHT_NAME_PREFIX = "colorizer"
@@ -118,6 +125,158 @@ local SETUP_SETTINGS = {
 	default_options = DEFAULT_OPTIONS;
 }
 
+local function name_parser(line, i)
+	local prefix = COLOR_TRIE:longest_prefix(line:sub(i))
+	if prefix then
+		local rgb = COLOR_MAP[prefix]
+		local rgb_hex = bit.tohex(rgb):sub(-6)
+		return #prefix, rgb_hex
+	end
+end
+
+local css_fn = {}
+
+local css_rgb_fn_minimum_length = #'rgb(0,0,0)' - 1
+local css_rgba_fn_minimum_length = #'rgba(0,0,0,0)' - 1
+local css_hsl_fn_minimum_length = #'hsl(0,0%,0%)' - 1
+local css_hsla_fn_minimum_length = #'hsla(0,0%,0%,0)' - 1
+
+local function percent_or_hex(v)
+	if v:sub(-1,-1) == "%" then
+		return tonumber(v:sub(1,-2))/100*255
+	end
+	local x = tonumber(v)
+	if x > 255 then return end
+	return x
+end
+
+function css_fn.rgb(line, i)
+	if #line < i + css_rgb_fn_minimum_length then return end
+	-- TODO this might be able to be improved.
+	local r, g, b, match_end = line:sub(i):match("^rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()")
+	if not r then return end
+	r = percent_or_hex(r) if not r then return end
+	g = percent_or_hex(g) if not g then return end
+	b = percent_or_hex(b) if not b then return end
+	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
+	if #rgb_hex ~= 6 then return end
+	return match_end - 1, rgb_hex
+end
+
+-- Pattern for rgba() functions from CSS
+function css_fn.rgba(line, i)
+	if #line < i + css_rgba_fn_minimum_length then return end
+	-- TODO this might be able to be improved.
+	local r, g, b, a, match_end = line:sub(i):match("^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)()")
+	if not r then return end
+	a = tonumber(a) if not a or a > 1 then return end
+	r = percent_or_hex(r) if not r then return end
+	g = percent_or_hex(g) if not g then return end
+	b = percent_or_hex(b) if not b then return end
+	-- TODO this might not be the best approach to alpha channel.
+	-- Things like pumblend might be useful here.
+	r, g, b = r*a, g*a, b*a
+	r, g, b = math.floor(r), math.floor(g), math.floor(b)
+	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
+	if #rgb_hex ~= 6 then
+		return
+	end
+	return match_end - 1, rgb_hex
+end
+
+-- https://gist.github.com/mjackson/5311256
+local function hue_to_rgb(p, q, t)
+	if t < 0 then t = t + 1 end
+	if t > 1 then t = t - 1 end
+	if t < 1/6 then return p + (q - p) * 6 * t end
+	if t < 1/2 then return q end
+	if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
+	return p
+end
+
+local function hsl_to_rgb(h, s, l)
+	if h > 1 or s > 1 or l > 1 then return end
+	if s == 0 then
+		local r = l * 255
+		return r, r, r
+	end
+
+	local q
+	if l < 0.5 then
+		q = l * (1 + s)
+	else
+		q = l + s - l * s
+	end
+	local p = 2 * l - q
+	return 255*hue_to_rgb(p, q, h + 1/3), 255*hue_to_rgb(p, q, h), 255*hue_to_rgb(p, q, h - 1/3)
+end
+
+function css_fn.hsl(line, i)
+	if #line < i + css_hsl_fn_minimum_length then return end
+	-- TODO this might be able to be improved.
+	local h, s, l, match_end = line:sub(i):match("^hsl%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)()")
+	if not h then return end
+	h = tonumber(h) if h > 360 then return end
+	s = tonumber(s) if s > 100 then return end
+	l = tonumber(l) if l > 100 then return end
+	local r, g, b = hsl_to_rgb(h/360, s/100, l/100)
+	if r == nil or g == nil or b == nil then return end
+	local rgb_hex = ("%02x%02x%02x"):format(math.floor(r), math.floor(g), math.floor(b))
+	if #rgb_hex ~= 6 then return end
+	return match_end-1, rgb_hex
+end
+
+function css_fn.hsla(line, i)
+	if #line < i + css_hsla_fn_minimum_length then return end
+	-- TODO this might be able to be improved.
+	local h, s, l, a, match_end = line:sub(i):match("^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)()")
+	if not h then return end
+	a = tonumber(a) if not a or a > 1 then return end
+	h = tonumber(h) if h > 360 then return end
+	s = tonumber(s) if s > 100 then return end
+	l = tonumber(l) if l > 100 then return end
+	local r, g, b = hsl_to_rgb(h/360, s/100, l/100)
+	if r == nil or g == nil or b == nil then return end
+	local rgb_hex = ("%02x%02x%02x"):format(math.floor(r*a), math.floor(g*a), math.floor(b*a))
+	if #rgb_hex ~= 6 then return end
+	return match_end-1, rgb_hex
+end
+
+local function css_function_parser(line, i)
+	local prefix = CSS_FUNCTION_TRIE:longest_prefix(line:sub(i))
+	if prefix then
+		return css_fn[prefix](line, i)
+	end
+end
+
+local function rgb_function_parser(line, i)
+	local prefix = RGB_FUNCTION_TRIE:longest_prefix(line:sub(i))
+	if prefix then
+		return css_fn[prefix](line, i)
+	end
+end
+
+local function hsl_function_parser(line, i)
+	local prefix = HSL_FUNCTION_TRIE:longest_prefix(line:sub(i))
+	if prefix then
+		return css_fn[prefix](line, i)
+	end
+end
+
+local function compile_matcher(matchers)
+	local parse_fn = matchers[1]
+	for j = 2, #matchers do
+		local old_parse_fn = parse_fn
+		local new_parse_fn = matchers[j]
+		parse_fn = function(line, i)
+			local length, rgb_hex = new_parse_fn(line, i)
+			if length then return length, rgb_hex end
+			return old_parse_fn(line, i)
+		end
+	end
+	return parse_fn
+end
+
 --[[-- Highlight the buffer region.
 Highlight starting from `line_start` (0-indexed) for each line described by `lines` in the
 buffer `buf` and attach it to the namespace `ns`.
@@ -130,13 +289,26 @@ buffer `buf` and attach it to the namespace `ns`.
 @see setup
 ]]
 local function highlight_buffer(buf, ns, lines, line_start, options)
-	local enable_names  = options.names
-	local enable_RGB    = options.css or options.RGB
-	local enable_RRGGBB = options.css or options.RRGGBB
-	local enable_rgb    = options.css or options.css_fns or options.rgb_fn
-	local enable_rgba   = options.css or options.css_fns or options.rgb_fn
-	local enable_hsl    = options.css or options.css_fns or options.hsl_fn
-	local enable_hsla   = options.css or options.css_fns or options.hsl_fn
+	local enable_names    = options.names
+	local enable_RGB      = options.css or options.RGB
+	local enable_RRGGBB   = options.css or options.RRGGBB
+	local enable_RRGGBBAA = options.css or options.RRGGBBAA
+	local enable_rgb      = options.css or options.css_fns or options.rgb_fn
+	local enable_hsl      = options.css or options.css_fns or options.hsl_fn
+
+	local loop_parse_fn
+	local loop_matchers = {}
+	if enable_names then table.insert(loop_matchers, name_parser) end
+	if enable_rgb and enable_hsl then
+		table.insert(loop_matchers, css_function_parser)
+	elseif enable_rgb then
+		table.insert(loop_matchers, rgb_function_parser)
+	elseif enable_hsl then
+		table.insert(loop_matchers, hsl_function_parser)
+	end
+	if #loop_matchers > 0 then
+		loop_parse_fn = compile_matcher(loop_matchers)
+	end
 	-- TODO do I have to put this here?
 	initialize_trie()
 	ns = ns or DEFAULT_NAMESPACE
@@ -146,21 +318,6 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 		local function highlight_line_rgb_hex(match_start, rgb_hex, match_end)
 			local highlight_name = create_highlight(rgb_hex, options)
 			nvim_buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
-		end
-		if enable_rgb then
-			-- TODO this can have improved performance by either reusing my trie or
-			-- doing a byte comp.
-			-- Pattern for rgb() functions from CSS
-			line:gsub("()rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()", function(match_start, r,g,b, match_end)
-				if r:sub(-1,-1) == "%" then r = math.floor(r:sub(1,-2)/100*255) end
-				if g:sub(-1,-1) == "%" then g = math.floor(g:sub(1,-2)/100*255) end
-				if b:sub(-1,-1) == "%" then b = math.floor(b:sub(1,-2)/100*255) end
-				local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
-				if #rgb_hex ~= 6 then
-					return
-				end
-				highlight_line_rgb_hex(match_start, rgb_hex, match_end)
-			end)
 		end
 		if enable_RGB then
 			-- Pattern for #RGB, part 1. No trailing characters allowed
@@ -172,17 +329,26 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 			-- Pattern for #RRGGBB
 			line:gsub("()#([%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F])()", highlight_line_rgb_hex)
 		end
-		if enable_names then
+		if enable_RRGGBBAA then
+			-- Pattern for #RRGGBB
+			line:gsub("()#([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])()", function(match_start, r, g, b, a, match_end)
+				a = tonumber(a, 16) if a > 255 then return end
+				r = tonumber(r, 16) if r > 255 then return end
+				g = tonumber(g, 16) if g > 255 then return end
+				b = tonumber(b, 16) if b > 255 then return end
+				a = a / 255
+				local rgb_hex = ("%02x%02x%02x"):format(math.floor(r*a), math.floor(g*a), math.floor(b*a))
+				if #rgb_hex ~= 6 then return end
+				highlight_line_rgb_hex(match_start, rgb_hex, match_end)
+			end)
+		end
+		if loop_parse_fn then
 			local i = 1
 			while i < #line do
-				-- TODO skip if the remaining length is less than the shortest length
-				-- of an entry in our trie.
-				local prefix = COLOR_TRIE:longest_prefix(line:sub(i))
-				if prefix then
-					local rgb = COLOR_MAP[prefix]
-					local rgb_hex = bit.tohex(rgb):sub(-6)
-					highlight_line_rgb_hex(i, rgb_hex, i+#prefix)
-					i = i + #prefix
+				local length, rgb_hex = loop_parse_fn(line, i)
+				if length then
+					highlight_line_rgb_hex(i, rgb_hex, i+length)
+					i = i + length
 				else
 					i = i + 1
 				end
@@ -238,7 +404,6 @@ local function attach_to_buffer(buf, options)
 			nvim_buf_clear_namespace(buf, ns, firstline, new_lastline)
 			local lines = nvim_buf_get_lines(buf, firstline, new_lastline, true)
 			highlight_buffer(buf, ns, lines, firstline, BUFFER_OPTIONS[buf])
---			highlight_buffer(buf, ns, lines, firstline, BUFFER_OPTIONS[buf] or options)
 		end;
 		on_detach = function()
 			BUFFER_OPTIONS[buf] = nil
@@ -356,6 +521,5 @@ return {
 	highlight_buffer = highlight_buffer;
 	reload_all_buffers = reload_all_buffers;
 	get_buffer_options = get_buffer_options;
-	-- initialize = initialize_trie;
 }
 
