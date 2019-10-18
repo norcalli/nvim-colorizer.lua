@@ -217,9 +217,7 @@ function css_fn.hsl(line, i)
 	-- TODO this might be able to be improved.
 	local h, s, l, match_end = line:sub(i):match("^hsl%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)()")
 	if not h then return end
-	print(h, s, l)
 	local r, g, b = hsl_to_rgb(tonumber(h)/360, tonumber(s)/100, tonumber(l)/100)
-	print(r, g, b)
 	r, g, b = math.floor(r), math.floor(g), math.floor(b)
 	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
 	if #rgb_hex ~= 6 then
@@ -233,7 +231,6 @@ function css_fn.hsla(line, i)
 		return
 	end
 	-- TODO this might be able to be improved.
-	-- Pattern for rgb() functions from CSS
 	local h, s, l, a, match_end = line:sub(i):match("^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)()")
 	if not h then return end
 	a = tonumber(a)
