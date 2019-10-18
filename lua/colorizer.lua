@@ -143,61 +143,32 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 	for current_linenum, line in ipairs(lines) do
 		-- @todo it's possible to skip processing the new code if the attributes hasn't changed.
 		current_linenum = current_linenum - 1 + line_start
-		local i = 1
-		while i < #line do
-			if options.rgb_fn then
-				-- TODO this can have improved performance by either reusing my trie or
-				-- doing a byte comp.
-				line:gsub("()rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()", function(match_start, r,g,b, match_end)
-					if r:sub(-1,-1) == "%" then r = math.floor(r:sub(1,-2)/100*255) end
-					if g:sub(-1,-1) == "%" then g = math.floor(g:sub(1,-2)/100*255) end
-					if b:sub(-1,-1) == "%" then b = math.floor(b:sub(1,-2)/100*255) end
-					local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
-					if #rgb_hex ~= 6 then
-						return
-					end
-					local highlight_name = create_highlight(rgb_hex, options)
-					nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
-				end)
-			end
-			local byte = line:byte(i)
-			-- # indicates an #RGB or #RRGGBB code
-			if byte == b_hash then
-				i = i + 1
-				if #line >= i + 5 then
-					local invalid = false
-					for n = i, i+5 do
-						byte = line:byte(n)
-						if not byte_is_hex(byte) then
-							invalid = true
-							break
-						end
-					end
-					if not invalid then
-						local rgb_hex = line:sub(i, i+5)
-						local highlight_name = create_highlight(rgb_hex, options)
-						-- Subtract one because 0-indexed, subtract another 1 for the '#'
-						nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, i-1-1, i+6-1)
-						i = i + 5
-					end
-				elseif #line >= i + 2 then
-					local invalid = false
-					for n = i, i+2 do
-						byte = line:byte(n)
-						if not byte_is_hex(byte) then
-							invalid = true
-							break
-						end
-					end
-					if not invalid then
-						local rgb_hex = line:sub(i, i+2)
-						local highlight_name = create_highlight(rgb_hex, options)
-						-- Subtract one because 0-indexed, subtract another 1 for the '#'
-						nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, i-1-1, i+3-1)
-						i = i + 2
-					end
+		if options.rgb_fn then
+			-- TODO this can have improved performance by either reusing my trie or
+			-- doing a byte comp.
+			line:gsub("()rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()", function(match_start, r,g,b, match_end)
+				if r:sub(-1,-1) == "%" then r = math.floor(r:sub(1,-2)/100*255) end
+				if g:sub(-1,-1) == "%" then g = math.floor(g:sub(1,-2)/100*255) end
+				if b:sub(-1,-1) == "%" then b = math.floor(b:sub(1,-2)/100*255) end
+				local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
+				if #rgb_hex ~= 6 then
+					return
 				end
-			elseif not options.no_names then
+				local highlight_name = create_highlight(rgb_hex, options)
+				nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
+			end)
+		end
+		line:gsub("()#([%da-fA-F][%da-fA-F][%da-fA-F])()", function(match_start, rgb_hex, match_end)
+			local highlight_name = create_highlight(rgb_hex, options)
+			nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
+		end)
+		line:gsub("()#([%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F])()", function(match_start, rgb_hex, match_end)
+			local highlight_name = create_highlight(rgb_hex, options)
+			nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
+		end)
+		if not options.no_names then
+			local i = 1
+			while i < #line do
 				-- TODO skip if the remaining length is less than the shortest length
 				-- of an entry in our trie.
 				local prefix = COLOR_TRIE:longest_prefix(line:sub(i))
@@ -210,8 +181,6 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 				else
 					i = i + 1
 				end
-			else
-				i = i + 1
 			end
 		end
 	end
