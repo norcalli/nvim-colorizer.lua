@@ -80,6 +80,13 @@ require 'colorizer'.setup {
 
 For lower level interface, see the [LuaDocs for API details](https://norcalli.github.io/luadoc/nvim-colorizer.lua/modules/colorizer.html) or use `:h colorizer.lua` once installed.
 
+## Caveats
+
+If the file you are editing has no filetype, the plugin won't be attached, as it relies on AutoCmd to do so. You can still make it work by running the following command:
+`:lua require'colorizer'.attach_to_buffer(0)`
+
+See [this comment](https://github.com/norcalli/nvim-colorizer.lua/issues/9#issuecomment-543742619) for more information.
+
 ## TODO
 
 - [ ] Add more display modes?
