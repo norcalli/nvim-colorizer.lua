@@ -55,10 +55,15 @@ local function color_is_bright(r, g, b)
 	end
 end
 
-local HIGHLIGHT_NAME_PREFIX = "colorizer_"
+local HIGHLIGHT_NAME_PREFIX = "colorizer"
+local MODE_NAMES = {
+	background = 'mb';
+	foreground = 'mf';
+}
+
 --- Make a deterministic name for a highlight given these attributes
-local function make_highlight_name(rgb)
-	return table.concat {HIGHLIGHT_NAME_PREFIX, rgb}
+local function make_highlight_name(rgb, mode)
+	return table.concat({HIGHLIGHT_NAME_PREFIX, MODE_NAMES[mode], rgb}, '_')
 end
 
 local highlight_cache = {}
@@ -69,9 +74,11 @@ local function table_is_empty(t)
 end
 
 local function create_highlight(rgb_hex, options)
+	local mode = options.mode or 'background'
 	-- TODO validate rgb format?
 	rgb_hex = rgb_hex:lower()
-	local highlight_name = highlight_cache[rgb_hex]
+	local cache_key = table.concat({MODE_NAMES[mode], rgb_hex}, "_")
+	local highlight_name = highlight_cache[cache_key]
 	-- Look up in our cache.
 	if not highlight_name then
 		if #rgb_hex == 3 then
@@ -82,8 +89,8 @@ local function create_highlight(rgb_hex, options)
 			}
 		end
 		-- Create the highlight
-		highlight_name = make_highlight_name(rgb_hex)
-		if options.mode == 'foreground' then
+		highlight_name = make_highlight_name(rgb_hex, mode)
+		if mode == 'foreground' then
 			nvim.ex.highlight(highlight_name, "guifg=#"..rgb_hex)
 		else
 			local r, g, b = rgb_hex:sub(1,2), rgb_hex:sub(3,4), rgb_hex:sub(5,6)
@@ -96,7 +103,7 @@ local function create_highlight(rgb_hex, options)
 			end
 			nvim.ex.highlight(highlight_name, "guifg="..fg_color, "guibg=#"..rgb_hex)
 		end
-		highlight_cache[rgb_hex] = highlight_name
+		highlight_cache[cache_key] = highlight_name
 	end
 	return highlight_name
 end
@@ -197,7 +204,6 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 				if prefix then
 					local rgb = COLOR_MAP[prefix]
 					local rgb_hex = bit.tohex(rgb):sub(-6)
-					-- TODO figure out proper background/foreground
 					local highlight_name = create_highlight(rgb_hex, options)
 					nvim.buf_add_highlight(buf, ns, highlight_name, current_linenum, i-1, i+#prefix-1)
 					i = i + #prefix
@@ -240,6 +246,15 @@ local function attach_to_buffer(buf, options)
 	})
 end
 
+local filetype_options = {}
+local function reload_buffer()
+	local options = filetype_options[nvim.bo.filetype] or filetype_options.default
+	local ns = DEFAULT_NAMESPACE
+	nvim.buf_clear_namespace(0, ns, 0, -1)
+	local lines = nvim.buf_get_lines(0, 0, -1, true)
+	highlight_buffer(0, ns, lines, 0, options)
+end
+
 --- Easy to use function if you want the full setup without fine grained control.
 -- Setup an autocmd which enables colorizing for the filetypes and options specified.
 --
@@ -265,7 +280,10 @@ local function setup(filetypes, default_options)
 		return
 	end
 	initialize_trie()
-	local filetype_options = {}
+	filetype_options = {}
+	if default_options then
+		filetype_options.default = default_options
+	end
 	function COLORIZER_SETUP_HOOK()
 		local filetype = nvim.bo.filetype
 		local options = filetype_options[filetype] or default_options
@@ -285,6 +303,7 @@ local function setup(filetypes, default_options)
 					nvim.err_writeln("colorizer: Invalid option type for filetype "..filetype)
 				else
 					options = vim.tbl_extend("keep", v, default_options)
+					assert(MODE_NAMES[options.mode or 'background'], "colorizer: Invalid mode: "..tostring(options.mode))
 				end
 			else
 				filetype = v
@@ -303,6 +322,7 @@ return {
 	setup = setup;
 	attach_to_buffer = attach_to_buffer;
 	highlight_buffer = highlight_buffer;
+	reload_buffer = reload_buffer;
 	-- initialize = initialize_trie;
 }
 
