@@ -141,6 +141,15 @@ local css_rgba_fn_minimum_length = #'rgba(0,0,0,0)' - 1
 local css_hsl_fn_minimum_length = #'hsl(0,0%,0%)' - 1
 local css_hsla_fn_minimum_length = #'hsla(0,0%,0%,0)' - 1
 
+local function percent_or_hex(v)
+	if v:sub(-1,-1) == "%" then
+		return tonumber(v:sub(1,-2))/100*255
+	end
+	local x = tonumber(v)
+	if x > 255 then return end
+	return x
+end
+
 function css_fn.rgb(line, i)
 	if #line < i + css_rgb_fn_minimum_length then
 		return
@@ -148,13 +157,14 @@ function css_fn.rgb(line, i)
 	-- TODO this might be able to be improved.
 	local r, g, b, match_end = line:sub(i):match("^rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()")
 	if not r then return end
-	if r:sub(-1,-1) == "%" then r = math.floor(r:sub(1,-2)/100*255) end
-	if g:sub(-1,-1) == "%" then g = math.floor(g:sub(1,-2)/100*255) end
-	if b:sub(-1,-1) == "%" then b = math.floor(b:sub(1,-2)/100*255) end
+	r = percent_or_hex(r)
+	if not r then return end
+	g = percent_or_hex(g)
+	if not g then return end
+	b = percent_or_hex(b)
+	if not b then return end
 	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
-	if #rgb_hex ~= 6 then
-		return
-	end
+	if #rgb_hex ~= 6 then return end
 	return match_end - 1, rgb_hex
 end
 
@@ -167,12 +177,13 @@ function css_fn.rgba(line, i)
 	local r, g, b, a, match_end = line:sub(i):match("^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)()")
 	if not r then return end
 	a = tonumber(a)
-	if not a or a > 1 then
-		return
-	end
-	if r:sub(-1,-1) == "%" then r = r:sub(1,-2)/100*255 end
-	if g:sub(-1,-1) == "%" then g = g:sub(1,-2)/100*255 end
-	if b:sub(-1,-1) == "%" then b = b:sub(1,-2)/100*255 end
+	if not a or a > 1 then return end
+	r = percent_or_hex(r)
+	if not r then return end
+	g = percent_or_hex(g)
+	if not g then return end
+	b = percent_or_hex(b)
+	if not b then return end
 	-- TODO this might not be the best approach to alpha channel.
 	-- Things like pumblend might be useful here.
 	r, g, b = r*a, g*a, b*a
@@ -195,6 +206,7 @@ local function hue_to_rgb(p, q, t)
 end
 
 local function hsl_to_rgb(h, s, l)
+	if h > 1 or s > 1 or l > 1 then return end
 	if s == 0 then
 		local r = l * 255
 		return r, r, r
@@ -218,11 +230,10 @@ function css_fn.hsl(line, i)
 	local h, s, l, match_end = line:sub(i):match("^hsl%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)()")
 	if not h then return end
 	local r, g, b = hsl_to_rgb(tonumber(h)/360, tonumber(s)/100, tonumber(l)/100)
+	if r == nil or g == nil or b == nil then return end
 	r, g, b = math.floor(r), math.floor(g), math.floor(b)
 	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
-	if #rgb_hex ~= 6 then
-		return
-	end
+	if #rgb_hex ~= 6 then return end
 	return match_end-1, rgb_hex
 end
 
@@ -236,11 +247,10 @@ function css_fn.hsla(line, i)
 	a = tonumber(a)
 	if not a or a > 1 then return end
 	local r, g, b = hsl_to_rgb(tonumber(h)/360, tonumber(s)/100, tonumber(l)/100)
+	if r == nil or g == nil or b == nil then return end
 	r, g, b = math.floor(r*a), math.floor(g*a), math.floor(b*a)
 	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
-	if #rgb_hex ~= 6 then
-		return
-	end
+	if #rgb_hex ~= 6 then return end
 	return match_end-1, rgb_hex
 end
 
