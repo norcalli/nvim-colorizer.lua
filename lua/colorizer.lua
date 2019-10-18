@@ -211,7 +211,7 @@ local function new_buffer_options(buf)
 end
 
 --- Attach to a buffer and continuously highlight changes.
--- @tparam[opt=0] integer buf A value of 0 implies the current buffer.
+-- @tparam[opt=0|nil] integer buf A value of 0 implies the current buffer.
 -- @param[opt] options Configuration options as described in `setup`
 -- @see setup
 local function attach_to_buffer(buf, options)
@@ -246,6 +246,9 @@ local function attach_to_buffer(buf, options)
 	})
 end
 
+--- Stop highlighting the current buffer.
+-- @tparam[opt=0|nil] integer buf A value of 0 or nil implies the current buffer.
+-- @tparam[opt=DEFAULT_NAMESPACE] integer ns the namespace id.
 local function detach_from_buffer(buf, ns)
 	if buf == 0 or buf == nil then
 		buf = nvim_get_current_buf()
@@ -320,6 +323,22 @@ local function setup(filetypes, default_options)
 	nvim.ex.augroup("END")
 end
 
+--- Reload all of the currently active highlighted buffers.
+local function reload_all_buffers()
+	for buf, buffer_options in pairs(BUFFER_OPTIONS) do
+		attach_to_buffer(buf)
+	end
+end
+
+--- Return the currently active buffer options.
+-- @tparam[opt=0|nil] integer buf A value of 0 or nil implies the current buffer.
+local function get_buffer_options(buf)
+	if buf == 0 or buf == nil then
+		buf = nvim_get_current_buf()
+	end
+	return merge({}, BUFFER_OPTIONS[buf])
+end
+
 --- @export
 return {
 	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE;
@@ -327,17 +346,8 @@ return {
 	attach_to_buffer = attach_to_buffer;
 	detach_from_buffer = detach_from_buffer;
 	highlight_buffer = highlight_buffer;
-	reload_all_buffers = function()
-		for buf, buffer_options in pairs(BUFFER_OPTIONS) do
-			attach_to_buffer(buf)
-		end
-	end;
-	get_buffer_options = function(buf)
-		if buf == 0 or buf == nil then
-			buf = nvim_get_current_buf()
-		end
-		return merge({}, BUFFER_OPTIONS[buf])
-	end;
+	reload_all_buffers = reload_all_buffers;
+	get_buffer_options = get_buffer_options;
 	-- initialize = initialize_trie;
 }
 
