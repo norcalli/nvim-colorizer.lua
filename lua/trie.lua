@@ -30,6 +30,7 @@ void free(void *ptr);
 
 local Trie_t = ffi.typeof('struct Trie')
 local Trie_ptr_t = ffi.typeof('$ *', Trie_t)
+local Trie_size = ffi.sizeof(Trie_t)
 
 local function byte_to_index(b)
 	-- 0-9 starts at string.byte('0') == 0x30 == 48 == 0b0011_0000
@@ -74,8 +75,6 @@ local function verify_byte_to_index()
 		assert((i-1) == index, vim.inspect{index=index,c=c})
 	end
 end
-
-local Trie_size = ffi.sizeof(Trie_t)
 
 local function new_trie()
 	local ptr = ffi.C.malloc(Trie_size)
@@ -237,6 +236,9 @@ local function print_structure(s)
 end
 
 local function free_trie(trie)
+	if trie == nil then
+		return
+	end
 	for i = 0, 61 do
 		local child = trie.character[i]
 		if child ~= nil then
@@ -247,24 +249,24 @@ local function free_trie(trie)
 end
 
 local Trie_mt = {
-		__index = {
-			insert = insert;
-			search = search;
-			longest_prefix = longest_prefix;
-		};
-		__tostring = function(trie)
-			local structure = trie_structure(trie)
-			if structure then
-				return table.concat(print_structure(structure), '\n')
-			else
-				return 'nil'
-			end
-		end;
-		__gc = free_trie;
-	}
-local Trie = ffi.metatype(Trie_t, Trie_mt)
+	__new = new_trie;
+	__index = {
+		insert = insert;
+		search = search;
+		longest_prefix = longest_prefix;
+	};
+	__tostring = function(trie)
+		local structure = trie_structure(trie)
+		if structure then
+			return table.concat(print_structure(structure), '\n')
+		else
+			return 'nil'
+		end
+	end;
+	__gc = free_trie;
+}
 
-return Trie
+return ffi.metatype('struct Trie', Trie_mt)
 
 -- local tests = {
 -- 	"cat";
