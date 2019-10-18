@@ -292,6 +292,9 @@ local function setup(filetypes, default_options)
 	default_options = SETUP_SETTINGS.default_options
 	function COLORIZER_SETUP_HOOK()
 		local filetype = nvim.bo.filetype
+		if SETUP_SETTINGS.exclusions[filetype] then
+			return
+		end
 		local options = FILETYPE_OPTIONS[filetype] or SETUP_SETTINGS.default_options
 		attach_to_buffer(nvim_get_current_buf(), options)
 	end
@@ -315,9 +318,14 @@ local function setup(filetypes, default_options)
 			else
 				filetype = v
 			end
-			FILETYPE_OPTIONS[filetype] = options
-			-- TODO What's the right mode for this? BufEnter?
-			nvim.ex.autocmd("FileType", filetype, "lua COLORIZER_SETUP_HOOK()")
+			-- Exclude
+			if filetype:sub(1,1) == '!' then
+				SETUP_SETTINGS.exclusions[filetype:sub(2)] = true
+			else
+				FILETYPE_OPTIONS[filetype] = options
+				-- TODO What's the right mode for this? BufEnter?
+				nvim.ex.autocmd("FileType", filetype, "lua COLORIZER_SETUP_HOOK()")
+			end
 		end
 	end
 	nvim.ex.augroup("END")
