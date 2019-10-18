@@ -10,15 +10,21 @@ A high-performance color highlighter for Neovim which has **no external dependen
 
 ## Installation and Usage
 
+Requires Neovim >= 0.4.0 and `termguicolors` (I'm looking into reducing these
+constraints). If you don't have true color for your terminal or are unsure,
+[read this excellent guide](https://github.com/termstandard/colors).
+
 Use your plugin manager or clone directly into your `runtimepath`.
 
 ```vim
 Plug 'norcalli/nvim-colorizer.lua'
 ```
 
-As long as you have `malloc()` and `free()` on your system, this will work. Which includes Linux, OSX, and Windows.
+As long as you have `malloc()` and `free()` on your system, this will work.
+Which includes Linux, OSX, and Windows.
 
-One line setup. This will create an `autocmd` for `FileType *` to highlight every filetype.
+One line setup. This will create an `autocmd` for `FileType *` to highlight
+every filetype.
 
 ```vim
 lua require'colorizer'.setup()
@@ -28,9 +34,16 @@ lua require'colorizer'.setup()
 
 Mostly, **RAW SPEED**.
 
-This has no external dependencies, which means you install it and **it just works**. Other colorizers typically were synchronous and slow, as well. Being written with performance in mind and leveraging the excellent LuaJIT and a handwritten parser, updates can be done in real time. There are plugins such as [hexokinase](https://github.com/RRethy/vim-hexokinase) which have good performance, but it has some difficulty with becoming out of sync. The downside is that *this only works for Neovim*, and that will never change.
+This has no external dependencies, which means you install it and **it just
+works**. Other colorizers typically were synchronous and slow, as well. Being
+written with performance in mind and leveraging the excellent LuaJIT and a
+handwritten parser, updates can be done in real time. There are plugins such as
+[hexokinase](https://github.com/RRethy/vim-hexokinase) which have good
+performance, but it has some difficulty with becoming out of sync. The downside
+is that *this only works for Neovim*, and that will never change.
 
-Additionally, having a Lua API that's available means users can use this as a library to do custom highlighting themselves.
+Additionally, having a Lua API that's available means users can use this as a
+library to do custom highlighting themselves.
 
 ### Customization
 
@@ -124,8 +137,9 @@ buffer.
 
 ## Caveats
 
-If the file you are editing has no filetype, the plugin won't be attached, as it relies on AutoCmd to do so. You can still make it work by running the following command:
-`:ColorizerAttachToBuffer`
+If the file you are editing has no filetype, the plugin won't be attached, as
+it relies on AutoCmd to do so. You can still make it work by running the
+following command: `:ColorizerAttachToBuffer`
 
 See [this comment](https://github.com/norcalli/nvim-colorizer.lua/issues/9#issuecomment-543742619) for more information.
 
