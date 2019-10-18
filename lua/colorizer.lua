@@ -288,6 +288,8 @@ local function setup(filetypes, default_options)
 		exclusions = {};
 		default_options = merge(DEFAULT_OPTIONS, default_options or {});
 	}
+	-- Copy filetypes this so we can manipulate it freely.
+	filetypes = merge(filetypes)
 	-- This is just in case I accidentally reference the wrong thing here.
 	default_options = SETUP_SETTINGS.default_options
 	function COLORIZER_SETUP_HOOK()
@@ -300,7 +302,10 @@ local function setup(filetypes, default_options)
 	end
 	nvim.ex.augroup("ColorizerSetup")
 	nvim.ex.autocmd_()
-	-- nvim.ex.autocmd("VimEnter * lua COLORIZER_SETUP_HOOK()")
+	if filetypes.on_event then
+		nvim.ex.autocmd(filetypes.on_event, " * lua COLORIZER_SETUP_HOOK()")
+		filetypes.on_enter = nil
+	end
 	if not filetypes then
 		nvim.ex.autocmd("FileType * lua COLORIZER_SETUP_HOOK()")
 	else
