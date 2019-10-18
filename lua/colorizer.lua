@@ -157,12 +157,9 @@ function css_fn.rgb(line, i)
 	-- TODO this might be able to be improved.
 	local r, g, b, match_end = line:sub(i):match("^rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()")
 	if not r then return end
-	r = percent_or_hex(r)
-	if not r then return end
-	g = percent_or_hex(g)
-	if not g then return end
-	b = percent_or_hex(b)
-	if not b then return end
+	r = percent_or_hex(r) if not r then return end
+	g = percent_or_hex(g) if not g then return end
+	b = percent_or_hex(b) if not b then return end
 	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
 	if #rgb_hex ~= 6 then return end
 	return match_end - 1, rgb_hex
@@ -176,14 +173,10 @@ function css_fn.rgba(line, i)
 	-- TODO this might be able to be improved.
 	local r, g, b, a, match_end = line:sub(i):match("^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)()")
 	if not r then return end
-	a = tonumber(a)
-	if not a or a > 1 then return end
-	r = percent_or_hex(r)
-	if not r then return end
-	g = percent_or_hex(g)
-	if not g then return end
-	b = percent_or_hex(b)
-	if not b then return end
+	a = tonumber(a) if not a or a > 1 then return end
+	r = percent_or_hex(r) if not r then return end
+	g = percent_or_hex(g) if not g then return end
+	b = percent_or_hex(b) if not b then return end
 	-- TODO this might not be the best approach to alpha channel.
 	-- Things like pumblend might be useful here.
 	r, g, b = r*a, g*a, b*a
@@ -229,10 +222,12 @@ function css_fn.hsl(line, i)
 	-- TODO this might be able to be improved.
 	local h, s, l, match_end = line:sub(i):match("^hsl%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)()")
 	if not h then return end
-	local r, g, b = hsl_to_rgb(tonumber(h)/360, tonumber(s)/100, tonumber(l)/100)
+	h = tonumber(h) if h > 360 then return end
+	s = tonumber(s) if s > 100 then return end
+	l = tonumber(l) if l > 100 then return end
+	local r, g, b = hsl_to_rgb(h/360, s/100, l/100)
 	if r == nil or g == nil or b == nil then return end
-	r, g, b = math.floor(r), math.floor(g), math.floor(b)
-	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
+	local rgb_hex = ("%02x%02x%02x"):format(math.floor(r), math.floor(g), math.floor(b))
 	if #rgb_hex ~= 6 then return end
 	return match_end-1, rgb_hex
 end
@@ -244,12 +239,13 @@ function css_fn.hsla(line, i)
 	-- TODO this might be able to be improved.
 	local h, s, l, a, match_end = line:sub(i):match("^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)()")
 	if not h then return end
-	a = tonumber(a)
-	if not a or a > 1 then return end
-	local r, g, b = hsl_to_rgb(tonumber(h)/360, tonumber(s)/100, tonumber(l)/100)
+	a = tonumber(a) if not a or a > 1 then return end
+	h = tonumber(h) if h > 360 then return end
+	s = tonumber(s) if s > 100 then return end
+	l = tonumber(l) if l > 100 then return end
+	local r, g, b = hsl_to_rgb(h/360, s/100, l/100)
 	if r == nil or g == nil or b == nil then return end
-	r, g, b = math.floor(r*a), math.floor(g*a), math.floor(b*a)
-	local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
+	local rgb_hex = ("%02x%02x%02x"):format(math.floor(r*a), math.floor(g*a), math.floor(b*a))
 	if #rgb_hex ~= 6 then return end
 	return match_end-1, rgb_hex
 end
@@ -344,13 +340,13 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 		if enable_RRGGBBAA then
 			-- Pattern for #RRGGBB
 			line:gsub("()#([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])()", function(match_start, r, g, b, a, match_end)
-				a = tonumber(a, 16) / 255
-				r, g, b = tonumber(r, 16) * a, tonumber(g, 16) * a, tonumber(b, 16) * a
-				r, g, b = math.floor(r), math.floor(g), math.floor(b)
-				local rgb_hex = ("%02x%02x%02x"):format(r,g,b)
-				if #rgb_hex ~= 6 then
-					return
-				end
+				a = tonumber(a, 16) if a > 255 then return end
+				r = tonumber(r, 16) if r > 255 then return end
+				g = tonumber(g, 16) if g > 255 then return end
+				b = tonumber(b, 16) if b > 255 then return end
+				a = a / 255
+				local rgb_hex = ("%02x%02x%02x"):format(math.floor(r*a), math.floor(g*a), math.floor(b*a))
+				if #rgb_hex ~= 6 then return end
 				highlight_line_rgb_hex(match_start, rgb_hex, match_end)
 			end)
 		end
