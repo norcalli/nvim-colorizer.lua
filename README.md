@@ -26,7 +26,9 @@ lua require'colorizer'.setup()
 
 ### Why another highlighter?
 
-This has no external dependencies, which means you install it and it works. Other colorizers typically were synchronous and slow, as well. Being written with performance in mind and leveraging the excellent LuaJIT and a handwritten parser, updates can be done in real time. There are plugins such as [hexokinase](https://github.com/RRethy/vim-hexokinase) which have good performance, but it has some difficulty with becoming out of sync. The downside is that *this only works for Neovim*, and that will never change.
+Mostly, **RAW SPEED**.
+
+This has no external dependencies, which means you install it and **it just works**. Other colorizers typically were synchronous and slow, as well. Being written with performance in mind and leveraging the excellent LuaJIT and a handwritten parser, updates can be done in real time. There are plugins such as [hexokinase](https://github.com/RRethy/vim-hexokinase) which have good performance, but it has some difficulty with becoming out of sync. The downside is that *this only works for Neovim*, and that will never change.
 
 Additionally, having a Lua API that's available means users can use this as a library to do custom highlighting themselves.
 
