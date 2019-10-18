@@ -10,9 +10,9 @@ A high-performance color highlighter for Neovim which has **no external dependen
 
 ## Installation and Usage
 
-Requires Neovim >= 0.4.0 and `termguicolors` (I'm looking into reducing these
-constraints). If you don't have true color for your terminal or are unsure,
-[read this excellent guide](https://github.com/termstandard/colors).
+Requires Neovim >= 0.4.0 and `set termguicolors` (I'm looking into relaxing
+these constraints). If you don't have true color for your terminal or are
+unsure, [read this excellent guide](https://github.com/termstandard/colors).
 
 Use your plugin manager or clone directly into your `runtimepath`.
 
