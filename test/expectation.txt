@@ -8,9 +8,9 @@ require'colorizer'.attach_to_buffer(0, {css=true})
  #F0F
  #FF00FF
  #FFF00F8F
- #F0F 1
- #FF00FF 1
- #FFF00F8F 1
+ #F0F #F00
+ #FF00FF #F00
+ #FFF00F8F #F00
 Blue Gray LightBlue Gray100 White
 White
 #def
@@ -22,6 +22,7 @@ hsl(300,50%,50%)
 hsla(300,50%,50%,0.5)
 hsla(300,50%,50%,1.0000000000000001)
 hsla(360,50%,50%,1.0000000000000001)
+blue gray lightblue gray100 white gold blue
 ]]
 
 --[[ FAIL
