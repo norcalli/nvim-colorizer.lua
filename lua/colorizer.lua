@@ -194,7 +194,7 @@ local function rgb_hex_parser(line, i, minlen, maxlen)
 		local r = floor(band(v, 0xFF)*alpha)
 		local g = floor(band(rshift(v, 8), 0xFF)*alpha)
 		local b = floor(band(rshift(v, 16), 0xFF)*alpha)
-		v = bor(lshift(r, 16), bor(lshift(g, 8), b))
+		v = bor(lshift(r, 16), lshift(g, 8), b)
 		return 9, tohex(v, 6)
 	end
 	return length, line:sub(i+1, i+length-1)
@@ -351,19 +351,8 @@ local function create_highlight(rgb_hex, options)
 	return highlight_name
 end
 
-
---[[-- Highlight the buffer region.
-Highlight starting from `line_start` (0-indexed) for each line described by `lines` in the
-buffer `buf` and attach it to the namespace `ns`.
-
-@tparam integer buf buffer id.
-@tparam[opt=DEFAULT_NAMESPACE] integer ns the namespace id. Create it with `vim.api.create_namespace`
-@tparam {string,...} lines the lines to highlight from the buffer.
-@tparam integer line_start should be 0-indexed
-@param options Configuration options as described in `setup`
-@see setup
-]]
-local function highlight_buffer(buf, ns, lines, line_start, options)
+local MATCHER_CACHE = {}
+local function make_matcher(options)
 	local enable_names    = options.css or options.names
 	local enable_RGB      = options.css or options.RGB
 	local enable_RRGGBB   = options.css or options.RRGGBB
@@ -371,7 +360,21 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 	local enable_rgb      = options.css or options.css_fns or options.rgb_fn
 	local enable_hsl      = options.css or options.css_fns or options.hsl_fn
 
-	local loop_parse_fn
+	local matcher_key = bor(
+		lshift(enable_names    and 1 or 0, 0),
+		lshift(enable_RGB      and 1 or 0, 1),
+		lshift(enable_RRGGBB   and 1 or 0, 2),
+		lshift(enable_RRGGBBAA and 1 or 0, 3),
+		lshift(enable_rgb      and 1 or 0, 4),
+		lshift(enable_hsl      and 1 or 0, 5))
+
+	if matcher_key == 0 then return end
+
+	local loop_parse_fn = MATCHER_CACHE[matcher_key]
+	if loop_parse_fn then
+		return loop_parse_fn
+	end
+
 	local loop_matchers = {}
 	if enable_names then
 		table.insert(loop_matchers, name_parser)
@@ -401,12 +404,27 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 	elseif enable_hsl then
 		table.insert(loop_matchers, hsl_function_parser)
 	end
-	if #loop_matchers > 0 then
-		loop_parse_fn = compile_matcher(loop_matchers)
-	end
+	loop_parse_fn = compile_matcher(loop_matchers)
+	MATCHER_CACHE[matcher_key] = loop_parse_fn
+	return loop_parse_fn
+end
+
+--[[-- Highlight the buffer region.
+Highlight starting from `line_start` (0-indexed) for each line described by `lines` in the
+buffer `buf` and attach it to the namespace `ns`.
+
+@tparam integer buf buffer id.
+@tparam[opt=DEFAULT_NAMESPACE] integer ns the namespace id. Create it with `vim.api.create_namespace`
+@tparam {string,...} lines the lines to highlight from the buffer.
+@tparam integer line_start should be 0-indexed
+@param options Configuration options as described in `setup`
+@see setup
+]]
+local function highlight_buffer(buf, ns, lines, line_start, options)
 	-- TODO do I have to put this here?
 	initialize_trie()
 	ns = ns or DEFAULT_NAMESPACE
+	local loop_parse_fn = make_matcher(options)
 	for current_linenum, line in ipairs(lines) do
 		current_linenum = current_linenum - 1 + line_start
 		-- Upvalues are options and current_linenum
@@ -414,39 +432,14 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 			local highlight_name = create_highlight(rgb_hex, options)
 			nvim_buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
 		end
-		-- if enable_RGB then
-		-- 	-- Pattern for #RGB, part 1. No trailing characters allowed
-		-- 	line:gsub("()#([%da-fA-F][%da-fA-F][%da-fA-F])()%W", highlight_line_rgb_hex)
-		-- 	-- Pattern for #RGB, part 2. Ending code.
-		-- 	line:gsub("()#([%da-fA-F][%da-fA-F][%da-fA-F])()$", highlight_line_rgb_hex)
-		-- end
-		-- if enable_RRGGBB then
-		-- 	-- Pattern for #RRGGBB
-		-- 	line:gsub("()#([%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F][%da-fA-F])()", highlight_line_rgb_hex)
-		-- end
-		-- if enable_RRGGBBAA then
-		-- 	-- Pattern for #RRGGBB
-		-- 	line:gsub("()#([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])([%da-fA-F][%da-fA-F])()", function(match_start, r, g, b, a, match_end)
-		-- 		a = tonumber(a, 16) if a > 255 then return end
-		-- 		r = tonumber(r, 16) if r > 255 then return end
-		-- 		g = tonumber(g, 16) if g > 255 then return end
-		-- 		b = tonumber(b, 16) if b > 255 then return end
-		-- 		a = a / 255
-		-- 		local rgb_hex = ("%02x%02x%02x"):format(floor(r*a), floor(g*a), floor(b*a))
-		-- 		if #rgb_hex ~= 6 then return end
-		-- 		highlight_line_rgb_hex(match_start, rgb_hex, match_end)
-		-- 	end)
-		-- end
-		if loop_parse_fn then
-			local i = 1
-			while i < #line do
-				local length, rgb_hex = loop_parse_fn(line, i)
-				if length then
-					highlight_line_rgb_hex(i, rgb_hex, i+length)
-					i = i + length
-				else
-					i = i + 1
-				end
+		local i = 1
+		while i < #line do
+			local length, rgb_hex = loop_parse_fn(line, i)
+			if length then
+				highlight_line_rgb_hex(i, rgb_hex, i+length)
+				i = i + length
+			else
+				i = i + 1
 			end
 		end
 	end
