@@ -34,6 +34,19 @@ local function trie_create()
 	return ffi.cast(Trie_ptr_t, ptr)
 end
 
+local function trie_destroy(trie)
+	if trie == nil then
+		return
+	end
+	for i = 0, 61 do
+		local child = trie.character[i]
+		if child ~= nil then
+			trie_destroy(child)
+		end
+	end
+	ffi.C.free(trie)
+end
+
 local INDEX_LOOKUP_TABLE = ffi.new 'uint8_t[256]'
 local CHAR_LOOKUP_TABLE = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 do
@@ -168,46 +181,44 @@ local function print_trie_table(s)
 	end
 	local lines = {}
 	for _, child in ipairs(s.children) do
-		local child_lines = print_trie_table(child)
+		local child_lines = print_trie_table(child, thicc)
 		for _, child_line in ipairs(child_lines) do
 			table.insert(lines, child_line)
 		end
 	end
 	local child_count = 0
-	for i, v in ipairs(lines) do
-		if v:match("^[%w%d]") then
+	for i, line in ipairs(lines) do
+		local line_parts = {}
+		if line:match("^%w") then
 			child_count = child_count + 1
 			if i == 1 then
-				lines[i] = mark.."─"..v
+				line_parts = {mark}
 			elseif i == #lines or child_count == #s.children then
-				lines[i] = "└──"..v
+				line_parts = {"└─"}
 			else
-				lines[i] = "├──"..v
+				line_parts = {"├─"}
 			end
 		else
 			if i == 1 then
-				lines[i] = mark.."─"..v
+				line_parts = {mark}
 			elseif #s.children > 1 and child_count ~= #s.children then
-				lines[i] = "│  "..v
+				line_parts = {"│ "}
 			else
-				lines[i] = "   "..v
+				line_parts = {"  "}
 			end
 		end
+		table.insert(line_parts, line)
+		lines[i] = table.concat(line_parts)
 	end
 	return lines
 end
 
-local function trie_destroy(trie)
+local function trie_to_string(trie)
 	if trie == nil then
-		return
+		return 'nil'
 	end
-	for i = 0, 61 do
-		local child = trie.character[i]
-		if child ~= nil then
-			trie_destroy(child)
-		end
-	end
-	ffi.C.free(trie)
+	local as_table = trie_as_table(trie)
+	return table.concat(print_trie_table(as_table), '\n')
 end
 
 local Trie_mt = {
@@ -224,52 +235,8 @@ local Trie_mt = {
 		longest_prefix = trie_longest_prefix;
 		extend = trie_extend;
 	};
-	__tostring = function(trie)
-		if trie == nil then
-			return 'nil'
-		end
-		return table.concat(print_trie_table(trie_as_table(trie)), '\n')
-	end;
+	__tostring = trie_to_string;
 	__gc = trie_destroy;
 }
 
 return ffi.metatype('struct Trie', Trie_mt)
-
--- local tests = {
--- 	"cat";
--- 	"car";
--- 	"celtic";
--- 	"carb";
--- 	"carb0";
--- 	"CART0";
--- 	"CaRT0";
--- 	"Cart0";
--- 	"931";
--- 	"191";
--- 	"121";
--- 	"cardio";
--- 	"call";
--- 	"calcium";
--- 	"calciur";
--- 	"carry";
--- 	"dog";
--- 	"catdog";
--- }
--- local trie = Trie()
--- for i, v in ipairs(tests) do
--- 	trie:insert(v)
--- end
-
--- print(trie)
--- print(trie.character[0])
--- print("catdo", trie:longest_prefix("catdo"))
--- print("catastrophic", trie:longest_prefix("catastrophic"))
-
--- local COLOR_MAP = vim.api.nvim_get_color_map()
--- local start = os.clock()
--- for k, v in pairs(COLOR_MAP) do
--- 	insert(trie, k)
--- end
--- print(os.clock() - start)
-
--- print(table.concat(print_trie_table(trie_as_table(trie)), '\n'))
