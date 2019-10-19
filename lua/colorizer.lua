@@ -17,7 +17,7 @@ local COLOR_MAP
 local COLOR_TRIE
 local COLOR_NAME_MINLEN, COLOR_NAME_MAXLEN
 local COLOR_NAME_SETTINGS = {
-	lowercase = false;
+	lowercase = true;
 	strip_digits = true;
 }
 
@@ -55,14 +55,15 @@ local function merge(...)
 end
 
 local DEFAULT_OPTIONS = {
-	RGB      = true;         -- #RGB hex codes
-	RRGGBB   = true;         -- #RRGGBB hex codes
-	names    = true;         -- "Name" codes like Blue
-	RRGGBBAA = false;        -- #RRGGBBAA hex codes
-	rgb_fn   = false;        -- CSS rgb() and rgba() functions
-	hsl_fn   = false;        -- CSS hsl() and hsla() functions
-	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
-	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+	RGB       = true;         -- #RGB hex codes
+	RRGGBB    = true;         -- #RRGGBB hex codes
+	names     = true;         -- "Name" codes like Blue
+	RRGGBBAA  = false;        -- #RRGGBBAA hex codes
+	rgb_fn    = false;        -- CSS rgb() and rgba() functions
+	hsl_fn    = false;        -- CSS hsl() and hsla() functions
+	css       = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
+	css_fn    = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+	lowercase = false;        -- Enable lowercase "Name" codes
 	-- Available modes: foreground, background
 	mode     = 'background'; -- Set the display mode.
 }
@@ -109,12 +110,12 @@ end
 local function byte_is_hex(byte)
 	return band(BYTE_CATEGORY[byte], CATEGORY_HEX) ~= 0
 end
-
-local function byte_is_alphanumeric(byte)
-	local category = BYTE_CATEGORY[byte]
-	return band(category, CATEGORY_ALPHANUM) ~= 0
+local function byte_is_alpha(byte)
+	return band(BYTE_CATEGORY[byte], CATEGORY_ALPHA) ~= 0
 end
-
+local function byte_is_alphanumeric(byte)
+	return band(BYTE_CATEGORY[byte], CATEGORY_ALPHANUM) ~= 0
+end
 local function parse_hex(b)
 	return rshift(BYTE_CATEGORY[b], 4)
 end
@@ -167,16 +168,21 @@ local function hsl_to_rgb(h, s, l)
 	return 255*hue_to_rgb(p, q, h + 1/3), 255*hue_to_rgb(p, q, h), 255*hue_to_rgb(p, q, h - 1/3)
 end
 
-local function color_name_parser(line, i)
+local function color_name_parser(line, i, allow_lowercase)
+	-- Disallow prefixing with an alphanumeric character
 	if i > 1 and byte_is_alphanumeric(line:byte(i-1)) then
 		return
 	end
 	if #line < i + COLOR_NAME_MINLEN - 1 then return end
+	if not allow_lowercase then
+		local b = line:byte(i)
+		-- This means it's lowercase.
+		if byte_is_alpha(b) and b >= 0x61 then return end
+	end
 	local prefix = COLOR_TRIE:longest_prefix(line, i)
 	if prefix then
-		-- Check if there is a letter here so as to disallow matching here.
+		-- Disallow trailing alphanumeric characters.
 		-- Take the Blue out of Blueberry
-		-- Line end or non-letter.
 		local next_byte_index = i + #prefix
 		if #line >= next_byte_index and byte_is_alphanumeric(line:byte(next_byte_index)) then
 			return
@@ -373,20 +379,22 @@ end
 
 local MATCHER_CACHE = {}
 local function make_matcher(options)
-	local enable_names    = options.css or options.names
-	local enable_RGB      = options.css or options.RGB
-	local enable_RRGGBB   = options.css or options.RRGGBB
-	local enable_RRGGBBAA = options.css or options.RRGGBBAA
-	local enable_rgb      = options.css or options.css_fns or options.rgb_fn
-	local enable_hsl      = options.css or options.css_fns or options.hsl_fn
+	local enable_names     = options.css or options.names
+	local enable_RGB       = options.css or options.RGB
+	local enable_RRGGBB    = options.css or options.RRGGBB
+	local enable_RRGGBBAA  = options.css or options.RRGGBBAA
+	local enable_rgb       = options.css or options.css_fns or options.rgb_fn
+	local enable_hsl       = options.css or options.css_fns or options.hsl_fn
+	local enable_lowercase = options.css or options.lowercase
 
 	local matcher_key = bor(
-		lshift(enable_names    and 1 or 0, 0),
-		lshift(enable_RGB      and 1 or 0, 1),
-		lshift(enable_RRGGBB   and 1 or 0, 2),
-		lshift(enable_RRGGBBAA and 1 or 0, 3),
-		lshift(enable_rgb      and 1 or 0, 4),
-		lshift(enable_hsl      and 1 or 0, 5))
+		lshift(enable_names     and 1 or 0, 0),
+		lshift(enable_RGB       and 1 or 0, 1),
+		lshift(enable_RRGGBB    and 1 or 0, 2),
+		lshift(enable_RRGGBBAA  and 1 or 0, 3),
+		lshift(enable_rgb       and 1 or 0, 4),
+		lshift(enable_hsl       and 1 or 0, 5),
+		lshift(enable_lowercase and 1 or 0, 6))
 
 	if matcher_key == 0 then return end
 
@@ -397,7 +405,9 @@ local function make_matcher(options)
 
 	local loop_matchers = {}
 	if enable_names then
-		table.insert(loop_matchers, color_name_parser)
+		table.insert(loop_matchers, function(line, i)
+			return color_name_parser(line, i, enable_lowercase)
+		end)
 	end
 	do
 		local valid_lengths = {[3] = enable_RGB, [6] = enable_RRGGBB, [8] = enable_RRGGBBAA}
@@ -566,7 +576,7 @@ local function setup(filetypes, user_default_options, global_configuration)
 		default_options = merge(DEFAULT_OPTIONS, user_default_options or {});
 	}
 	global_configuration = global_configuration or {
-		lowercase = false;
+		lowercase = true;
 		on_enter = false;
 	}
 	if type(global_configuration.lowercase) == 'boolean' then
