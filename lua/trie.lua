@@ -162,7 +162,7 @@ local function trie_as_table(trie)
 	}
 end
 
-local function print_trie_table(s, thicc)
+local function print_trie_table(s)
 	local mark
 	if not s then
 		return {'nil'}
@@ -189,7 +189,6 @@ local function print_trie_table(s, thicc)
 	local child_count = 0
 	for i, line in ipairs(lines) do
 		local line_parts = {}
-		-- if line[1] and line[1]:match("^%w") then
 		if line:match("^%w") then
 			child_count = child_count + 1
 			if i == 1 then
@@ -199,30 +198,27 @@ local function print_trie_table(s, thicc)
 			else
 				line_parts = {"├─"}
 			end
-			if thicc then table.insert(line_parts, "─") end
 		else
 			if i == 1 then
 				line_parts = {mark}
-				if thicc then table.insert(line_parts, "─") end
 			elseif #s.children > 1 and child_count ~= #s.children then
-				line_parts = {thicc and "│  " or "│ "}
+				line_parts = {"│ "}
 			else
-				line_parts = {thicc and "   " or "  "}
+				line_parts = {"  "}
 			end
 		end
 		table.insert(line_parts, line)
-		-- lines[i] = vim.tbl_flatten(line_parts)
 		lines[i] = table.concat(line_parts)
 	end
 	return lines
 end
 
-local function trie_to_string(trie, thicc)
+local function trie_to_string(trie)
 	if trie == nil then
 		return 'nil'
 	end
 	local as_table = trie_as_table(trie)
-	return table.concat(print_trie_table(as_table, thicc), '\n')
+	return table.concat(print_trie_table(as_table), '\n')
 end
 
 local Trie_mt = {
@@ -238,49 +234,9 @@ local Trie_mt = {
 		search = trie_search;
 		longest_prefix = trie_longest_prefix;
 		extend = trie_extend;
-		to_string = trie_to_string;
 	};
 	__tostring = trie_to_string;
 	__gc = trie_destroy;
 }
 
 return ffi.metatype('struct Trie', Trie_mt)
-
--- local tests = {
--- 	"cat";
--- 	"car";
--- 	"celtic";
--- 	"carb";
--- 	"carb0";
--- 	"CART0";
--- 	"CaRT0";
--- 	"Cart0";
--- 	"931";
--- 	"191";
--- 	"121";
--- 	"cardio";
--- 	"call";
--- 	"calcium";
--- 	"calciur";
--- 	"carry";
--- 	"dog";
--- 	"catdog";
--- }
--- local trie = Trie()
--- for i, v in ipairs(tests) do
--- 	trie:insert(v)
--- end
-
--- print(trie)
--- print(trie.character[0])
--- print("catdo", trie:longest_prefix("catdo"))
--- print("catastrophic", trie:longest_prefix("catastrophic"))
-
--- local COLOR_MAP = vim.api.nvim_get_color_map()
--- local start = os.clock()
--- for k, v in pairs(COLOR_MAP) do
--- 	insert(trie, k)
--- end
--- print(os.clock() - start)
-
--- print(table.concat(print_trie_table(trie_as_table(trie)), '\n'))
