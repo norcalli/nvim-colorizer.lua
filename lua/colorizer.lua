@@ -18,7 +18,7 @@ local COLOR_TRIE
 local COLOR_NAME_MINLEN, COLOR_NAME_MAXLEN
 local COLOR_NAME_SETTINGS = {
 	lowercase = false;
-	strip_digits = true;
+	strip_digits = false;
 }
 
 --- Setup the COLOR_MAP and COLOR_TRIE
