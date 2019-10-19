@@ -428,15 +428,12 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 	for current_linenum, line in ipairs(lines) do
 		current_linenum = current_linenum - 1 + line_start
 		-- Upvalues are options and current_linenum
-		local function highlight_line_rgb_hex(match_start, rgb_hex, match_end)
-			local highlight_name = create_highlight(rgb_hex, options)
-			nvim_buf_add_highlight(buf, ns, highlight_name, current_linenum, match_start-1, match_end-1)
-		end
 		local i = 1
 		while i < #line do
 			local length, rgb_hex = loop_parse_fn(line, i)
 			if length then
-				highlight_line_rgb_hex(i, rgb_hex, i+length)
+				local highlight_name = create_highlight(rgb_hex, options)
+				nvim_buf_add_highlight(buf, ns, highlight_name, current_linenum, i-1, i+length-1)
 				i = i + length
 			else
 				i = i + 1
