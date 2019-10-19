@@ -555,7 +555,7 @@ end
 -- @param[opt={'*'}] filetypes A table/array of filetypes to selectively enable and/or customize. By default, enables all filetypes.
 -- @tparam[opt] {[string]=string} default_options Default options to apply for the filetypes enable.
 -- @usage require'colorizer'.setup()
-local function setup(filetypes, user_default_options, global_configuration)
+local function setup(filetypes, user_default_options)
 	if not nvim.o.termguicolors then
 		nvim.err_writeln("&termguicolors must be set")
 		return
@@ -565,13 +565,6 @@ local function setup(filetypes, user_default_options, global_configuration)
 		exclusions = {};
 		default_options = merge(DEFAULT_OPTIONS, user_default_options or {});
 	}
-	global_configuration = global_configuration or {
-		lowercase = false;
-		on_enter = false;
-	}
-	if type(global_configuration.lowercase) == 'boolean' then
-		COLOR_NAME_SETTINGS.lowercase = global_configuration.lowercase
-	end
 	-- Initialize this AFTER setting COLOR_NAME_SETTINGS
 	initialize_trie()
 	function COLORIZER_SETUP_HOOK()
@@ -584,9 +577,6 @@ local function setup(filetypes, user_default_options, global_configuration)
 	end
 	nvim.ex.augroup("ColorizerSetup")
 	nvim.ex.autocmd_()
-	if global_configuration.on_enter then
-		nvim.ex.autocmd("VimEnter * lua COLORIZER_SETUP_HOOK()")
-	end
 	if not filetypes then
 		nvim.ex.autocmd("FileType * lua COLORIZER_SETUP_HOOK()")
 	else
