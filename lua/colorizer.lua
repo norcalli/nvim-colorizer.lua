@@ -1,7 +1,7 @@
 --- Highlights terminal CSI ANSI color codes.
 -- @module colorizer
-local nvim = require 'nvim'
-local Trie = require 'trie'
+local nvim = require 'colorizer/nvim'
+local Trie = require 'colorizer/trie'
 local bit = require 'bit'
 local ffi = require 'ffi'
 
