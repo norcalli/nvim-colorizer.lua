@@ -85,21 +85,22 @@ local CATEGORY_HEX      = lshift(1, 2);
 local CATEGORY_ALPHANUM = bor(CATEGORY_ALPHA, CATEGORY_DIGIT)
 do
 	local b = string.byte
+	local b_0, b_9, b_a, b_z, b_f = b'0', b'9', b'a', b'z', b'f'
 	for i = 0, 255 do
 		local v = 0
 		-- Digit is bit 1
-		if i >= b'0' and i <= b'9' then
+		if i >= b_0 and i <= b_9 then
 			v = bor(v, lshift(1, 0))
 			v = bor(v, lshift(1, 2))
-			v = bor(v, lshift(i - b'0', 4))
+			v = bor(v, lshift(i - b_0, 4))
 		end
 		local lowercase = bor(i, 0x20)
 		-- Alpha is bit 2
-		if lowercase >= b'a' and lowercase <= b'z' then
+		if lowercase >= b_a and lowercase <= b_z then
 			v = bor(v, lshift(1, 1))
-			if lowercase <= b'f' then
+			if lowercase <= b_f then
 				v = bor(v, lshift(1, 2))
-				v = bor(v, lshift(lowercase - b'a'+10, 4))
+				v = bor(v, lshift(lowercase - b_a+10, 4))
 			end
 		end
 		BYTE_CATEGORY[i] = v
@@ -119,8 +120,9 @@ local function parse_hex(b)
 	return rshift(BYTE_CATEGORY[b], 4)
 end
 
+local b_percent = string.byte("%")
 local function percent_or_hex(v)
-	if v:sub(-1,-1) == "%" then
+	if v:byte(-1) == b_percent then
 		return tonumber(v:sub(1,-2))/100*255
 	end
 	local x = tonumber(v)
@@ -185,7 +187,7 @@ local function color_name_parser(line, i)
 	end
 end
 
-local b_hash = ("#"):byte()
+local b_hash = string.byte("#")
 local function rgb_hex_parser(line, i, minlen, maxlen)
 	if i > 1 and byte_is_alphanumeric(line:byte(i-1)) then
 		return
@@ -286,19 +288,19 @@ do
 	local RGB_FUNCTION_TRIE = Trie {'rgb', 'rgba'}
 	local HSL_FUNCTION_TRIE = Trie {'hsl', 'hsla'}
 	css_function_parser = function(line, i)
-		local prefix = CSS_FUNCTION_TRIE:longest_prefix(line:sub(i))
+		local prefix = CSS_FUNCTION_TRIE:longest_prefix(line, i)
 		if prefix then
 			return css_fn[prefix](line, i)
 		end
 	end
 	rgb_function_parser = function(line, i)
-		local prefix = RGB_FUNCTION_TRIE:longest_prefix(line:sub(i))
+		local prefix = RGB_FUNCTION_TRIE:longest_prefix(line, i)
 		if prefix then
 			return css_fn[prefix](line, i)
 		end
 	end
 	hsl_function_parser = function(line, i)
-		local prefix = HSL_FUNCTION_TRIE:longest_prefix(line:sub(i))
+		local prefix = HSL_FUNCTION_TRIE:longest_prefix(line, i)
 		if prefix then
 			return css_fn[prefix](line, i)
 		end
@@ -445,6 +447,9 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 	initialize_trie()
 	ns = ns or DEFAULT_NAMESPACE
 	local loop_parse_fn = make_matcher(options)
+	if options.custom_matcher then
+		loop_parse_fn = compile_matcher {loop_parse_fn, options.custom_matcher}
+	end
 	for current_linenum, line in ipairs(lines) do
 		current_linenum = current_linenum - 1 + line_start
 		-- Upvalues are options and current_linenum
@@ -505,7 +510,7 @@ local function attach_to_buffer(buf, options)
 	BUFFER_OPTIONS[buf] = options
 	rehighlight_buffer(buf, options)
 	if already_attached then
-		return
+		return false
 	end
 	-- send_buffer: true doesn't actually do anything in Lua (yet)
 	nvim.buf_attach(buf, false, {
@@ -522,6 +527,7 @@ local function attach_to_buffer(buf, options)
 			BUFFER_OPTIONS[buf] = nil
 		end;
 	})
+	return true
 end
 
 --- Stop highlighting the current buffer.
@@ -620,7 +626,18 @@ local function get_buffer_options(buf)
 	if buf == 0 or buf == nil then
 		buf = nvim_get_current_buf()
 	end
-	return merge({}, BUFFER_OPTIONS[buf])
+	if BUFFER_OPTIONS[buf] then
+		return merge({}, BUFFER_OPTIONS[buf])
+	end
+end
+
+--- Return the currently active buffer options.
+-- @tparam[opt=0|nil] integer buf A value of 0 or nil implies the current buffer.
+local function is_buffer_attached(buf)
+	if buf == 0 or buf == nil then
+		buf = nvim_get_current_buf()
+	end
+	return BUFFER_OPTIONS[buf] ~= nil
 end
 
 --- @export
@@ -632,5 +649,15 @@ return {
 	highlight_buffer = highlight_buffer;
 	reload_all_buffers = reload_all_buffers;
 	get_buffer_options = get_buffer_options;
+	is_buffer_attached = is_buffer_attached;
+	parsers = {
+		compile = compile_matcher;
+		color_name_parser = color_name_parser;
+		css_fn = css_fn;
+		css_function_parser = css_function_parser;
+		hsl_function_parser = hsl_function_parser;
+		rgb_function_parser = rgb_function_parser;
+		rgb_hex_parser = rgb_hex_parser;
+	}
 }
 
