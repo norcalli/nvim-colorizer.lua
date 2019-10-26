@@ -22,6 +22,9 @@ If applicable, add screenshots to help explain your problem.
 **Operating System:**
 e.g. Ubuntu 16.04
 
+**Neovim Version:**
+e.g. 0.4.2
+
 **Colorizer Version:**
 Paste the output of 
 
