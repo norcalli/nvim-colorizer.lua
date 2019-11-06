@@ -489,6 +489,16 @@ local function new_buffer_options(buf)
 	return FILETYPE_OPTIONS[filetype] or SETUP_SETTINGS.default_options
 end
 
+--- Check if attached to a buffer.
+-- @tparam[opt=0|nil] integer buf A value of 0 implies the current buffer.
+-- @return true if attached to the buffer, false otherwise.
+local function is_buffer_attached(buf)
+	if buf == 0 or buf == nil then
+		buf = nvim_get_current_buf()
+	end
+	return BUFFER_OPTIONS[buf] ~= nil
+end
+
 --- Attach to a buffer and continuously highlight changes.
 -- @tparam[opt=0|nil] integer buf A value of 0 implies the current buffer.
 -- @param[opt] options Configuration options as described in `setup`
@@ -627,6 +637,7 @@ end
 return {
 	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE;
 	setup = setup;
+	is_buffer_attached = is_buffer_attached;
 	attach_to_buffer = attach_to_buffer;
 	detach_from_buffer = detach_from_buffer;
 	highlight_buffer = highlight_buffer;
