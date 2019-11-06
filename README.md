@@ -132,6 +132,10 @@ Stop highlighting the current buffer (detach).
 Reload all buffers that are being highlighted with new settings from the setup
 settings (or the defaults). Shortcut for ColorizerAttachToBuffer on every
 buffer.
+
+|:ColorizerToggle|
+
+Toggle highlighting of the current buffer.
 ```
 
 
