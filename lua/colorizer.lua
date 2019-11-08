@@ -515,7 +515,7 @@ local function attach_to_buffer(buf, options)
 				return true
 			end
 			nvim_buf_clear_namespace(buf, ns, firstline, new_lastline)
-			local lines = nvim_buf_get_lines(buf, firstline, new_lastline, true)
+			local lines = nvim_buf_get_lines(buf, firstline, new_lastline, false)
 			highlight_buffer(buf, ns, lines, firstline, BUFFER_OPTIONS[buf])
 		end;
 		on_detach = function()
