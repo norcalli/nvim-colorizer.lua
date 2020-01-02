@@ -837,7 +837,8 @@ local function color_picker(starting, on_change)
 	local winnr = api.nvim_open_win(bufnr, true, {
 		style = 'minimal';
 		-- anchor = 'NW';
-		width = bar_width + 10;
+		-- The required extra width is 6. Anything after is for padding.
+		width = bar_width + 6 + 1;
 		relative = 'cursor';
 		row = 0; col = 0;
 		height = 4;
@@ -880,11 +881,11 @@ local function color_picker_on_cursor(config)
 	start = start or col+1
 	local prefix = line:sub(1, start-1)
 	local suffix = line:sub(start+(length or 0))
-	local matched = line:sub(start, start+length)
 	local formatter = function(rgb)
 		return "#"..rgb_to_hex(unpack(rgb))
 	end
-	if match_format then
+	if match_format and length then
+		local matched = line:sub(start, start+length)
 		-- TODO(ashkan): make matching the result optional?
 		if startswith(matched, "rgba") then
 			-- TODO(ashkan): support alpha?
