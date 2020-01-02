@@ -775,6 +775,11 @@ local function color_picker(starting, on_change)
 			local values = cmode.values
 			values[i] = clamp(values[i]+S.value, 0, cmode.limits[i])
 			changed = true
+		elseif S.set then
+			local i = cmode.focus+1
+			local values = cmode.values
+			values[i] = floor(S.set * cmode.limits[i])
+			changed = true
 		elseif S.mode then
 			local values = cmode.rgb()
 			mode = (mode + S.mode) % 2
@@ -796,6 +801,11 @@ local function color_picker(starting, on_change)
 	api.nvim_buf_set_keymap(bufnr, 'n', 'L', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{value=10}<cr>', {noremap=true})
 	api.nvim_buf_set_keymap(bufnr, 'n', 'H', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{value=-10}<cr>', {noremap=true})
 	api.nvim_buf_set_keymap(bufnr, 'n', '<TAB>', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{mode=1}<cr>', {noremap=true})
+	api.nvim_buf_set_keymap(bufnr, 'n', '0', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{set=0}<cr>', {noremap=true})
+	api.nvim_buf_set_keymap(bufnr, 'n', '1', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{set=0.25}<cr>', {noremap=true})
+	api.nvim_buf_set_keymap(bufnr, 'n', '2', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{set=0.50}<cr>', {noremap=true})
+	api.nvim_buf_set_keymap(bufnr, 'n', '3', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{set=0.75}<cr>', {noremap=true})
+	api.nvim_buf_set_keymap(bufnr, 'n', '4', '<cmd>lua _PICKER_ASHKAN_KIANI_COPYRIGHT_2020_LONG_NAME_HERE_{set=1}<cr>', {noremap=true})
 
 	api.nvim_buf_attach(bufnr, false, {
 		on_detach = function()
@@ -932,4 +942,4 @@ return {
 }
 
 
--- vim:noet sw=2 ts=2
+-- vim:noet sw=3 ts=3
