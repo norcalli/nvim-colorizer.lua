@@ -23,11 +23,18 @@ Plug 'norcalli/nvim-colorizer.lua'
 As long as you have `malloc()` and `free()` on your system, this will work.
 Which includes Linux, OSX, and Windows.
 
-One line setup. This will create an `autocmd` for `FileType *` to highlight
+One line setup.
+
+This will create an `autocmd` for `FileType *` to highlight
 every filetype.
 
 ```vim
 lua require'colorizer'.setup()
+```
+
+Highlight all filetypes but exclude text files. See Customization section below for more advanced lua examples.
+```vim
+lua require 'colorizer'.setup({'*', '!text'})
 ```
 
 ### Why another highlighter?
