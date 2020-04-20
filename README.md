@@ -25,6 +25,7 @@ Which includes Linux, OSX, and Windows.
 
 One line setup. This will create an `autocmd` for `FileType *` to highlight
 every filetype.
+**NOTE**: You should add this line after/below where your plugins are setup.
 
 ```vim
 lua require'colorizer'.setup()
