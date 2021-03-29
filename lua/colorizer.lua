@@ -356,7 +356,7 @@ local function create_highlight(rgb_hex, options)
 		highlight_name = make_highlight_name(rgb_hex, mode)
 		if mode == 'foreground' then
 			nvim.ex.highlight(highlight_name, "guifg=#"..rgb_hex)
-        elseif mode == 'both' then
+		elseif mode == 'both' then
 			nvim.ex.highlight(highlight_name, "guifg=#"..rgb_hex, "guibg=#"..rgb_hex)
 		else
 			local r, g, b = rgb_hex:sub(1,2), rgb_hex:sub(3,4), rgb_hex:sub(5,6)
