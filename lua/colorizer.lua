@@ -63,7 +63,7 @@ local DEFAULT_OPTIONS = {
 	hsl_fn   = false;        -- CSS hsl() and hsla() functions
 	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
 	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
-	-- Available modes: foreground, background
+	-- Available modes: foreground, background, both
 	mode     = 'background'; -- Set the display mode.
 }
 
@@ -328,6 +328,7 @@ local HIGHLIGHT_NAME_PREFIX = "colorizer"
 local HIGHLIGHT_MODE_NAMES = {
 	background = "mb";
 	foreground = "mf";
+    both = "mbf";
 }
 local HIGHLIGHT_CACHE = {}
 
@@ -355,6 +356,8 @@ local function create_highlight(rgb_hex, options)
 		highlight_name = make_highlight_name(rgb_hex, mode)
 		if mode == 'foreground' then
 			nvim.ex.highlight(highlight_name, "guifg=#"..rgb_hex)
+        elseif mode == 'both' then
+			nvim.ex.highlight(highlight_name, "guifg=#"..rgb_hex, "guibg=#"..rgb_hex)
 		else
 			local r, g, b = rgb_hex:sub(1,2), rgb_hex:sub(3,4), rgb_hex:sub(5,6)
 			r, g, b = tonumber(r,16), tonumber(g,16), tonumber(b,16)
@@ -560,7 +563,7 @@ end
 -- Possible options:
 -- - `no_names`: Don't highlight names like Blue
 -- - `rgb_fn`: Highlight `rgb(...)` functions.
--- - `mode`: Highlight mode. Valid options: `foreground`,`background`
+-- - `mode`: Highlight mode. Valid options: `foreground`,`background`,`both`
 --
 -- @param[opt={'*'}] filetypes A table/array of filetypes to selectively enable and/or customize. By default, enables all filetypes.
 -- @tparam[opt] {[string]=string} default_options Default options to apply for the filetypes enable.
