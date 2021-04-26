@@ -64,12 +64,14 @@ Assumes the module is imported as `colorizer`
     css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
     -- Available modes: foreground, background
     mode     = 'background'; -- Set the display mode.
+    virtualtext = '■'; -- the virtual text block
   }
 <
 
 MODES:
 - 'foreground': sets the foreground text color.
 - 'background': sets the background text color.
+- 'virtualtext': indicate the color behind the virtualtext
 
 
 |colorizer.setup|                                               *colorizer.setup*
