@@ -215,9 +215,9 @@ local function rgb_hex_parser(line, i, minlen, maxlen)
 	if length ~= 4 and length ~= 7 and length ~= 9 then return end
 	if alpha then
 		alpha = tonumber(alpha)/255
-		local r = floor(band(v, 0xFF)*alpha)
+		local r = floor(band(rshift(v, 16), 0xFF)*alpha)
 		local g = floor(band(rshift(v, 8), 0xFF)*alpha)
-		local b = floor(band(rshift(v, 16), 0xFF)*alpha)
+		local b = floor(band(v, 0xFF)*alpha)
 		v = bor(lshift(r, 16), lshift(g, 8), b)
 		return 9, tohex(v, 6)
 	end
