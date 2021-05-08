@@ -59,6 +59,7 @@ local DEFAULT_OPTIONS = {
 	RRGGBB   = true;         -- #RRGGBB hex codes
 	names    = true;         -- "Name" codes like Blue
 	RRGGBBAA = false;        -- #RRGGBBAA hex codes
+    rgb_0x   = false;        -- 0xAARRGGBB hex codes
 	rgb_fn   = false;        -- CSS rgb() and rgba() functions
 	hsl_fn   = false;        -- CSS hsl() and hsla() functions
 	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
@@ -224,6 +225,35 @@ local function rgb_hex_parser(line, i, minlen, maxlen)
 	return length, line:sub(i+1, i+length-1)
 end
 
+local rgb_fn = function(line,i)
+        local j = i + 2
+        if #line < 10 then return end
+        local n = j + 8
+        local alpha
+        local v = 0
+        while j <= min(n, #line) do
+            local b = line:byte(j)
+            if not byte_is_hex(b) then break end
+            if j - i <= 3  then
+                alpha = parse_hex(b) + lshift(alpha or 0, 4)
+            else
+                v = parse_hex(b) + lshift(v, 4)
+            end
+            j = j + 1
+        end
+        if #line >= j and byte_is_alphanumeric(line:byte(j)) then
+            return
+        end
+        local length = j - i
+        if length ~= 10 then return end
+        alpha = tonumber(alpha)/255
+        local r = floor(band(rshift(v, 16), 0xFF)*alpha)
+        local g = floor(band(rshift(v, 8), 0xFF)*alpha)
+        local b = floor(band(v, 0xFF)*alpha)
+        v = bor(lshift(r, 16), lshift(g, 8), b)
+        return 10, tohex(v, 6)
+end
+
 -- TODO consider removing the regexes here
 -- TODO this might not be the best approach to alpha channel.
 -- Things like pumblend might be useful here.
@@ -280,6 +310,15 @@ do
 		return match_end - 1, rgb_hex
 	end
 end
+
+local RGB_FUNCTION_TRIE = Trie {'0x'}
+local rgb_0x_parser= function(line, i)
+    local prefix = RGB_FUNCTION_TRIE:longest_prefix(line:sub(i))
+    if prefix then
+        return rgb_fn(line, i)
+    end
+end
+
 local css_function_parser, rgb_function_parser, hsl_function_parser
 do
 	local CSS_FUNCTION_TRIE = Trie {'rgb', 'rgba', 'hsl', 'hsla'}
@@ -374,6 +413,7 @@ end
 local MATCHER_CACHE = {}
 local function make_matcher(options)
 	local enable_names    = options.css or options.names
+	local enable_0x       = options.rgb_0x
 	local enable_RGB      = options.css or options.RGB
 	local enable_RRGGBB   = options.css or options.RRGGBB
 	local enable_RRGGBBAA = options.css or options.RRGGBBAA
@@ -399,6 +439,9 @@ local function make_matcher(options)
 	if enable_names then
 		table.insert(loop_matchers, color_name_parser)
 	end
+    if enable_0x then
+        table.insert(loop_matchers, rgb_0x_parser)
+    end
 	do
 		local valid_lengths = {[3] = enable_RGB, [6] = enable_RRGGBB, [8] = enable_RRGGBBAA}
 		local minlen, maxlen
@@ -417,6 +460,7 @@ local function make_matcher(options)
 			end)
 		end
 	end
+
 	if enable_rgb and enable_hsl then
 		table.insert(loop_matchers, css_function_parser)
 	elseif enable_rgb then
