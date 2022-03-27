@@ -635,6 +635,7 @@ end
 
 --- @export
 return {
+	BUFFER_OPTIONS = BUFFER_OPTIONS;
 	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE;
 	setup = setup;
 	is_buffer_attached = is_buffer_attached;

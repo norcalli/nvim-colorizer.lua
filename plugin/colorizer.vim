@@ -9,4 +9,6 @@ command! ColorizerToggle lua local c = require'colorizer'
             \ if c.is_buffer_attached(0) then c.detach_from_buffer(0) else
             \ c.attach_to_buffer(0) end
 
+autocmd ColorScheme * lua require'colorizer.reload'()
+
 let g:loaded_colorizer = 1
