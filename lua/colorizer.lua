@@ -16,24 +16,20 @@ local floor, min, max = math.floor, math.min, math.max
 local COLOR_MAP
 local COLOR_TRIE
 local COLOR_NAME_MINLEN, COLOR_NAME_MAXLEN
-local COLOR_NAME_SETTINGS = {
-	lowercase = false;
-	strip_digits = false;
-}
 
 --- Setup the COLOR_MAP and COLOR_TRIE
-local function initialize_trie()
+local function initialize_trie(options)
 	if not COLOR_TRIE then
 		COLOR_MAP = {}
 		COLOR_TRIE = Trie()
 		for k, v in pairs(nvim.get_color_map()) do
-			if not (COLOR_NAME_SETTINGS.strip_digits and k:match("%d+$")) then
+			if not (options.strip_digits and k:match("%d+$")) then
 				COLOR_NAME_MINLEN = COLOR_NAME_MINLEN and min(#k, COLOR_NAME_MINLEN) or #k
 				COLOR_NAME_MAXLEN = COLOR_NAME_MAXLEN and max(#k, COLOR_NAME_MAXLEN) or #k
 				local rgb_hex = tohex(v, 6)
 				COLOR_MAP[k] = rgb_hex
 				COLOR_TRIE:insert(k)
-				if COLOR_NAME_SETTINGS.lowercase then
+				if options.lowercase then
 					local lowercase = k:lower()
 					COLOR_MAP[lowercase] = rgb_hex
 					COLOR_TRIE:insert(lowercase)
@@ -55,16 +51,19 @@ local function merge(...)
 end
 
 local DEFAULT_OPTIONS = {
-	RGB      = true;         -- #RGB hex codes
-	RRGGBB   = true;         -- #RRGGBB hex codes
-	names    = true;         -- "Name" codes like Blue
-	RRGGBBAA = false;        -- #RRGGBBAA hex codes
-	rgb_fn   = false;        -- CSS rgb() and rgba() functions
-	hsl_fn   = false;        -- CSS hsl() and hsla() functions
-	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
-	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+	RGB    	        = true;         -- #RGB hex codes
+	RRGGBB          = true;         -- #RRGGBB hex codes
+	names           = true;         -- "Name" codes like Blue
+	RRGGBBAA        = false;        -- #RRGGBBAA hex codes
+	rgb_fn          = false;        -- CSS rgb() and rgba() functions
+	hsl_fn          = false;        -- CSS hsl() and hsla() functions
+	css             = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
+	css_fn          = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
 	-- Available modes: foreground, background
-	mode     = 'background'; -- Set the display mode.
+	mode            = 'background'; -- Set the display mode.
+	-- Color name options
+	lowercase       = false;        -- Match lowercase "name" codes like blue
+	strip_digits    = false;
 }
 
 -- -- TODO use rgb as the return value from the matcher functions
@@ -575,8 +574,7 @@ local function setup(filetypes, user_default_options)
 		exclusions = {};
 		default_options = merge(DEFAULT_OPTIONS, user_default_options or {});
 	}
-	-- Initialize this AFTER setting COLOR_NAME_SETTINGS
-	initialize_trie()
+	initialize_trie(SETUP_SETTINGS.default_options)
 	function COLORIZER_SETUP_HOOK()
 		local filetype = nvim.bo.filetype
 		if SETUP_SETTINGS.exclusions[filetype] then
