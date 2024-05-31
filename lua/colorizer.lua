@@ -633,6 +633,49 @@ local function get_buffer_options(buf)
 	return merge({}, BUFFER_OPTIONS[buf])
 end
 
+nvim.o.guicursor = "n-v-c-sm:block-Cursor,i-ci-ve:ver25,r-cr-o:hor20"
+local CURSOR_HIGHLIGHTS
+local CURSOR_LINE
+local function follow_cursor()
+	local pos = nvim.win_get_cursor(0)
+	local buf = nvim_get_current_buf()
+	local options = BUFFER_OPTIONS[buf]
+	if not options then return end
+
+	if pos[1] ~= CURSOR_LINE then
+		CURSOR_LINE = pos[1]
+		CURSOR_HIGHLIGHTS = {}
+		local line = nvim_buf_get_lines(buf, CURSOR_LINE-1, CURSOR_LINE, true)[1]
+		local loop_parse_fn = make_matcher(options)
+		local i = 1
+		while i < #line do
+			local length, rgb_hex = loop_parse_fn(line, i)
+			if length then
+				table.insert(CURSOR_HIGHLIGHTS, {i, i+length, rgb_hex})
+				i = i + length
+			else
+				i = i + 1
+			end
+		end
+	end
+	local col = pos[2]+1
+	local highlight_found = false
+	for _, highlight in ipairs(CURSOR_HIGHLIGHTS) do
+		local i, j, rgb_hex = unpack(highlight)
+		if i <= col and j > col then
+			print(col, i, j, rgb_hex)
+			nvim.ex.highlight("Cursor", "guibg=#"..rgb_hex, "guifg=#"..rgb_hex)
+			highlight_found = true
+			break
+		end
+	end
+	if not highlight_found then
+		nvim.ex.highlight("Cursor NONE")
+	end
+end
+FOLLOW_CURSOR = follow_cursor
+nvim.ex.autocmd("CursorMoved,CursorMovedI * lua FOLLOW_CURSOR()")
+
 --- @export
 return {
 	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE;
