@@ -148,6 +148,17 @@ following command: `:ColorizerAttachToBuffer`
 
 See [this comment](https://github.com/norcalli/nvim-colorizer.lua/issues/9#issuecomment-543742619) for more information.
 
+### Fix for `*.conf` files
+
+To automatically colorize `*.conf` files, you can use this lua snippet (run it inside a config function):
+
+```lua
+vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
+  pattern = {"*.conf"},
+  command = ":ColorizerAttachToBuffer",
+})
+```
+
 ## TODO
 
 - [ ] Add more display modes?
