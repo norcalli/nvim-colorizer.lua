@@ -16,9 +16,15 @@ unsure, [read this excellent guide](https://github.com/termstandard/colors).
 
 Use your plugin manager or clone directly into your `runtimepath`.
 
+Using [vim-plug](https://github.com/junegunn/vim-plug)
 ```vim
 Plug 'norcalli/nvim-colorizer.lua'
 ```
+Using [packer.nvim](https://github.com/wbthomason/packer.nvim):
+```lua
+use { 'norcalli/nvim-colorizer.lua' }
+```
+
 
 As long as you have `malloc()` and `free()` on your system, this will work.
 Which includes Linux, OSX, and Windows.
