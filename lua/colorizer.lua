@@ -1,9 +1,9 @@
 --- Highlights terminal CSI ANSI color codes.
 -- @module colorizer
-local nvim = require 'colorizer/nvim'
-local Trie = require 'colorizer/trie'
-local bit = require 'bit'
-local ffi = require 'ffi'
+local nvim = require("colorizer/nvim")
+local Trie = require("colorizer/trie")
+local bit = require("bit")
+local ffi = require("ffi")
 
 local nvim_buf_add_highlight = vim.api.nvim_buf_add_highlight
 local nvim_buf_clear_namespace = vim.api.nvim_buf_clear_namespace
@@ -17,23 +17,23 @@ local COLOR_MAP
 local COLOR_TRIE
 local COLOR_NAME_MINLEN, COLOR_NAME_MAXLEN
 local COLOR_NAME_SETTINGS = {
-	lowercase = false;
-	strip_digits = false;
+	lowercase = true,
+	strip_digits = false,
 }
 
 --- Setup the COLOR_MAP and COLOR_TRIE
-local function initialize_trie()
+local function initialize_trie(options)
 	if not COLOR_TRIE then
 		COLOR_MAP = {}
 		COLOR_TRIE = Trie()
 		for k, v in pairs(nvim.get_color_map()) do
-			if not (COLOR_NAME_SETTINGS.strip_digits and k:match("%d+$")) then
+			if not (options.strip_digits and k:match("%d+$")) then
 				COLOR_NAME_MINLEN = COLOR_NAME_MINLEN and min(#k, COLOR_NAME_MINLEN) or #k
 				COLOR_NAME_MAXLEN = COLOR_NAME_MAXLEN and max(#k, COLOR_NAME_MAXLEN) or #k
 				local rgb_hex = tohex(v, 6)
 				COLOR_MAP[k] = rgb_hex
 				COLOR_TRIE:insert(k)
-				if COLOR_NAME_SETTINGS.lowercase then
+				if options.lowercase then
 					local lowercase = k:lower()
 					COLOR_MAP[lowercase] = rgb_hex
 					COLOR_TRIE:insert(lowercase)
@@ -45,9 +45,9 @@ end
 
 local function merge(...)
 	local res = {}
-	for i = 1,select("#", ...) do
+	for i = 1, select("#", ...) do
 		local o = select(i, ...)
-		for k,v in pairs(o) do
+		for k, v in pairs(o) do
 			res[k] = v
 		end
 	end
@@ -55,16 +55,16 @@ local function merge(...)
 end
 
 local DEFAULT_OPTIONS = {
-	RGB      = true;         -- #RGB hex codes
-	RRGGBB   = true;         -- #RRGGBB hex codes
-	names    = true;         -- "Name" codes like Blue
-	RRGGBBAA = false;        -- #RRGGBBAA hex codes
-	rgb_fn   = false;        -- CSS rgb() and rgba() functions
-	hsl_fn   = false;        -- CSS hsl() and hsla() functions
-	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
-	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
-	-- Available modes: foreground, background
-	mode     = 'background'; -- Set the display mode.
+	RGB = true, -- #RGB hex codes
+	RRGGBB = true, -- #RRGGBB hex codes
+	names = true, -- "Name" codes like Blue
+	RRGGBBAA = false, -- #RRGGBBAA hex codes
+	rgb_fn = false, -- CSS rgb() and rgba() functions
+	hsl_fn = false, -- CSS hsl() and hsla() functions
+	css = false, -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
+	css_fn = false, -- Enable all CSS *functions*: rgb_fn, hsl_fn
+	mode = "background", -- Set the display mode.
+	lowercase = false, -- Handle lowercase color names
 }
 
 -- -- TODO use rgb as the return value from the matcher functions
@@ -78,28 +78,28 @@ local DEFAULT_OPTIONS = {
 
 -- Create a lookup table where the bottom 4 bits are used to indicate the
 -- category and the top 4 bits are the hex value of the ASCII byte.
-local BYTE_CATEGORY = ffi.new 'uint8_t[256]'
-local CATEGORY_DIGIT    = lshift(1, 0);
-local CATEGORY_ALPHA    = lshift(1, 1);
-local CATEGORY_HEX      = lshift(1, 2);
+local BYTE_CATEGORY = ffi.new("uint8_t[256]")
+local CATEGORY_DIGIT = lshift(1, 0)
+local CATEGORY_ALPHA = lshift(1, 1)
+local CATEGORY_HEX = lshift(1, 2)
 local CATEGORY_ALPHANUM = bor(CATEGORY_ALPHA, CATEGORY_DIGIT)
 do
 	local b = string.byte
 	for i = 0, 255 do
 		local v = 0
 		-- Digit is bit 1
-		if i >= b'0' and i <= b'9' then
+		if i >= b("0") and i <= b("9") then
 			v = bor(v, lshift(1, 0))
 			v = bor(v, lshift(1, 2))
-			v = bor(v, lshift(i - b'0', 4))
+			v = bor(v, lshift(i - b("0"), 4))
 		end
 		local lowercase = bor(i, 0x20)
 		-- Alpha is bit 2
-		if lowercase >= b'a' and lowercase <= b'z' then
+		if lowercase >= b("a") and lowercase <= b("z") then
 			v = bor(v, lshift(1, 1))
-			if lowercase <= b'f' then
+			if lowercase <= b("f") then
 				v = bor(v, lshift(1, 2))
-				v = bor(v, lshift(lowercase - b'a'+10, 4))
+				v = bor(v, lshift(lowercase - b("a") + 10, 4))
 			end
 		end
 		BYTE_CATEGORY[i] = v
@@ -120,11 +120,13 @@ local function parse_hex(b)
 end
 
 local function percent_or_hex(v)
-	if v:sub(-1,-1) == "%" then
-		return tonumber(v:sub(1,-2))/100*255
+	if v:sub(-1, -1) == "%" then
+		return tonumber(v:sub(1, -2)) / 100 * 255
 	end
 	local x = tonumber(v)
-	if x > 255 then return end
+	if x > 255 then
+		return
+	end
 	return x
 end
 
@@ -133,7 +135,7 @@ end
 -- https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 local function color_is_bright(r, g, b)
 	-- Counting the perceptive luminance - human eye favors green color
-	local luminance = (0.299*r + 0.587*g + 0.114*b)/255
+	local luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
 	if luminance > 0.5 then
 		return true -- Bright colors, black font
 	else
@@ -143,16 +145,28 @@ end
 
 -- https://gist.github.com/mjackson/5311256
 local function hue_to_rgb(p, q, t)
-	if t < 0 then t = t + 1 end
-	if t > 1 then t = t - 1 end
-	if t < 1/6 then return p + (q - p) * 6 * t end
-	if t < 1/2 then return q end
-	if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
+	if t < 0 then
+		t = t + 1
+	end
+	if t > 1 then
+		t = t - 1
+	end
+	if t < 1 / 6 then
+		return p + (q - p) * 6 * t
+	end
+	if t < 1 / 2 then
+		return q
+	end
+	if t < 2 / 3 then
+		return p + (q - p) * (2 / 3 - t) * 6
+	end
 	return p
 end
 
 local function hsl_to_rgb(h, s, l)
-	if h > 1 or s > 1 or l > 1 then return end
+	if h > 1 or s > 1 or l > 1 then
+		return
+	end
 	if s == 0 then
 		local r = l * 255
 		return r, r, r
@@ -164,14 +178,16 @@ local function hsl_to_rgb(h, s, l)
 		q = l + s - l * s
 	end
 	local p = 2 * l - q
-	return 255*hue_to_rgb(p, q, h + 1/3), 255*hue_to_rgb(p, q, h), 255*hue_to_rgb(p, q, h - 1/3)
+	return 255 * hue_to_rgb(p, q, h + 1 / 3), 255 * hue_to_rgb(p, q, h), 255 * hue_to_rgb(p, q, h - 1 / 3)
 end
 
 local function color_name_parser(line, i)
-	if i > 1 and byte_is_alphanumeric(line:byte(i-1)) then
+	if i > 1 and byte_is_alphanumeric(line:byte(i - 1)) then
 		return
 	end
-	if #line < i + COLOR_NAME_MINLEN - 1 then return end
+	if #line < i + COLOR_NAME_MINLEN - 1 then
+		return
+	end
 	local prefix = COLOR_TRIE:longest_prefix(line, i)
 	if prefix then
 		-- Check if there is a letter here so as to disallow matching here.
@@ -187,20 +203,24 @@ end
 
 local b_hash = ("#"):byte()
 local function rgb_hex_parser(line, i, minlen, maxlen)
-	if i > 1 and byte_is_alphanumeric(line:byte(i-1)) then
+	if i > 1 and byte_is_alphanumeric(line:byte(i - 1)) then
 		return
 	end
 	if line:byte(i) ~= b_hash then
 		return
 	end
 	local j = i + 1
-	if #line < j + minlen - 1 then return end
+	if #line < j + minlen - 1 then
+		return
+	end
 	local n = j + maxlen
 	local alpha
 	local v = 0
 	while j <= min(n, #line) do
 		local b = line:byte(j)
-		if not byte_is_hex(b) then break end
+		if not byte_is_hex(b) then
+			break
+		end
 		if j - i >= 7 then
 			alpha = parse_hex(b) + lshift(alpha or 0, 4)
 		else
@@ -212,16 +232,18 @@ local function rgb_hex_parser(line, i, minlen, maxlen)
 		return
 	end
 	local length = j - i
-	if length ~= 4 and length ~= 7 and length ~= 9 then return end
+	if length ~= 4 and length ~= 7 and length ~= 9 then
+		return
+	end
 	if alpha then
-		alpha = tonumber(alpha)/255
-		local r = floor(band(rshift(v, 16), 0xFF)*alpha)
-		local g = floor(band(rshift(v, 8), 0xFF)*alpha)
-		local b = floor(band(v, 0xFF)*alpha)
+		alpha = tonumber(alpha) / 255
+		local r = floor(band(rshift(v, 16), 0xFF) * alpha)
+		local g = floor(band(rshift(v, 8), 0xFF) * alpha)
+		local b = floor(band(v, 0xFF) * alpha)
 		v = bor(lshift(r, 16), lshift(g, 8), b)
 		return 9, tohex(v, 6)
 	end
-	return length, line:sub(i+1, i+length-1)
+	return length, line:sub(i + 1, i + length - 1)
 end
 
 -- TODO consider removing the regexes here
@@ -229,62 +251,126 @@ end
 -- Things like pumblend might be useful here.
 local css_fn = {}
 do
-	local CSS_RGB_FN_MINIMUM_LENGTH = #'rgb(0,0,0)' - 1
-	local CSS_RGBA_FN_MINIMUM_LENGTH = #'rgba(0,0,0,0)' - 1
-	local CSS_HSL_FN_MINIMUM_LENGTH = #'hsl(0,0%,0%)' - 1
-	local CSS_HSLA_FN_MINIMUM_LENGTH = #'hsla(0,0%,0%,0)' - 1
+	local CSS_RGB_FN_MINIMUM_LENGTH = #"rgb(0,0,0)" - 1
+	local CSS_RGBA_FN_MINIMUM_LENGTH = #"rgba(0,0,0,0)" - 1
+	local CSS_HSL_FN_MINIMUM_LENGTH = #"hsl(0,0%,0%)" - 1
+	local CSS_HSLA_FN_MINIMUM_LENGTH = #"hsla(0,0%,0%,0)" - 1
 	function css_fn.rgb(line, i)
-		if #line < i + CSS_RGB_FN_MINIMUM_LENGTH then return end
+		if #line < i + CSS_RGB_FN_MINIMUM_LENGTH then
+			return
+		end
 		local r, g, b, match_end = line:sub(i):match("^rgb%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*%)()")
-		if not match_end then return end
-		r = percent_or_hex(r) if not r then return end
-		g = percent_or_hex(g) if not g then return end
-		b = percent_or_hex(b) if not b then return end
+		if not match_end then
+			return
+		end
+		r = percent_or_hex(r)
+		if not r then
+			return
+		end
+		g = percent_or_hex(g)
+		if not g then
+			return
+		end
+		b = percent_or_hex(b)
+		if not b then
+			return
+		end
 		local rgb_hex = tohex(bor(lshift(r, 16), lshift(g, 8), b), 6)
 		return match_end - 1, rgb_hex
 	end
 	function css_fn.hsl(line, i)
-		if #line < i + CSS_HSL_FN_MINIMUM_LENGTH then return end
+		if #line < i + CSS_HSL_FN_MINIMUM_LENGTH then
+			return
+		end
 		local h, s, l, match_end = line:sub(i):match("^hsl%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)()")
-		if not match_end then return end
-		h = tonumber(h) if h > 360 then return end
-		s = tonumber(s) if s > 100 then return end
-		l = tonumber(l) if l > 100 then return end
-		local r, g, b = hsl_to_rgb(h/360, s/100, l/100)
-		if r == nil or g == nil or b == nil then return end
+		if not match_end then
+			return
+		end
+		h = tonumber(h)
+		if h > 360 then
+			return
+		end
+		s = tonumber(s)
+		if s > 100 then
+			return
+		end
+		l = tonumber(l)
+		if l > 100 then
+			return
+		end
+		local r, g, b = hsl_to_rgb(h / 360, s / 100, l / 100)
+		if r == nil or g == nil or b == nil then
+			return
+		end
 		local rgb_hex = tohex(bor(lshift(floor(r), 16), lshift(floor(g), 8), floor(b)), 6)
 		return match_end - 1, rgb_hex
 	end
 	function css_fn.rgba(line, i)
-		if #line < i + CSS_RGBA_FN_MINIMUM_LENGTH then return end
-		local r, g, b, a, match_end = line:sub(i):match("^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)()")
-		if not match_end then return end
-		a = tonumber(a) if not a or a > 1 then return end
-		r = percent_or_hex(r) if not r then return end
-		g = percent_or_hex(g) if not g then return end
-		b = percent_or_hex(b) if not b then return end
-		local rgb_hex = tohex(bor(lshift(floor(r*a), 16), lshift(floor(g*a), 8), floor(b*a)), 6)
+		if #line < i + CSS_RGBA_FN_MINIMUM_LENGTH then
+			return
+		end
+		local r, g, b, a, match_end = line:sub(i)
+			:match("^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)()")
+		if not match_end then
+			return
+		end
+		a = tonumber(a)
+		if not a or a > 1 then
+			return
+		end
+		r = percent_or_hex(r)
+		if not r then
+			return
+		end
+		g = percent_or_hex(g)
+		if not g then
+			return
+		end
+		b = percent_or_hex(b)
+		if not b then
+			return
+		end
+		local rgb_hex = tohex(bor(lshift(floor(r * a), 16), lshift(floor(g * a), 8), floor(b * a)), 6)
 		return match_end - 1, rgb_hex
 	end
 	function css_fn.hsla(line, i)
-		if #line < i + CSS_HSLA_FN_MINIMUM_LENGTH then return end
-		local h, s, l, a, match_end = line:sub(i):match("^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)()")
-		if not match_end then return end
-		a = tonumber(a) if not a or a > 1 then return end
-		h = tonumber(h) if h > 360 then return end
-		s = tonumber(s) if s > 100 then return end
-		l = tonumber(l) if l > 100 then return end
-		local r, g, b = hsl_to_rgb(h/360, s/100, l/100)
-		if r == nil or g == nil or b == nil then return end
-		local rgb_hex = tohex(bor(lshift(floor(r*a), 16), lshift(floor(g*a), 8), floor(b*a)), 6)
+		if #line < i + CSS_HSLA_FN_MINIMUM_LENGTH then
+			return
+		end
+		local h, s, l, a, match_end = line:sub(i)
+			:match("^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)()")
+		if not match_end then
+			return
+		end
+		a = tonumber(a)
+		if not a or a > 1 then
+			return
+		end
+		h = tonumber(h)
+		if h > 360 then
+			return
+		end
+		s = tonumber(s)
+		if s > 100 then
+			return
+		end
+		l = tonumber(l)
+		if l > 100 then
+			return
+		end
+		local r, g, b = hsl_to_rgb(h / 360, s / 100, l / 100)
+		if r == nil or g == nil or b == nil then
+			return
+		end
+		local rgb_hex = tohex(bor(lshift(floor(r * a), 16), lshift(floor(g * a), 8), floor(b * a)), 6)
 		return match_end - 1, rgb_hex
 	end
 end
 local css_function_parser, rgb_function_parser, hsl_function_parser
 do
-	local CSS_FUNCTION_TRIE = Trie {'rgb', 'rgba', 'hsl', 'hsla'}
-	local RGB_FUNCTION_TRIE = Trie {'rgb', 'rgba'}
-	local HSL_FUNCTION_TRIE = Trie {'hsl', 'hsla'}
+	local CSS_FUNCTION_TRIE = Trie({ "rgb", "rgba", "hsl", "hsla" })
+	local RGB_FUNCTION_TRIE = Trie({ "rgb", "rgba" })
+	local HSL_FUNCTION_TRIE = Trie({ "hsl", "hsla" })
 	css_function_parser = function(line, i)
 		local prefix = CSS_FUNCTION_TRIE:longest_prefix(line:sub(i))
 		if prefix then
@@ -312,7 +398,9 @@ local function compile_matcher(matchers)
 		local new_parse_fn = matchers[j]
 		parse_fn = function(line, i)
 			local length, rgb_hex = new_parse_fn(line, i)
-			if length then return length, rgb_hex end
+			if length then
+				return length, rgb_hex
+			end
 			return old_parse_fn(line, i)
 		end
 	end
@@ -323,48 +411,48 @@ end
 -- The name is "terminal_highlight"
 -- @see highlight_buffer
 -- @see attach_to_buffer
-local DEFAULT_NAMESPACE = nvim.create_namespace "colorizer"
+local DEFAULT_NAMESPACE = nvim.create_namespace("colorizer")
 local HIGHLIGHT_NAME_PREFIX = "colorizer"
 local HIGHLIGHT_MODE_NAMES = {
-	background = "mb";
-	foreground = "mf";
+	background = "mb",
+	foreground = "mf",
 }
 local HIGHLIGHT_CACHE = {}
 
 --- Make a deterministic name for a highlight given these attributes
 local function make_highlight_name(rgb, mode)
-	return table.concat({HIGHLIGHT_NAME_PREFIX, HIGHLIGHT_MODE_NAMES[mode], rgb}, '_')
+	return table.concat({ HIGHLIGHT_NAME_PREFIX, HIGHLIGHT_MODE_NAMES[mode], rgb }, "_")
 end
 
 local function create_highlight(rgb_hex, options)
-	local mode = options.mode or 'background'
+	local mode = options.mode or "background"
 	-- TODO validate rgb format?
 	rgb_hex = rgb_hex:lower()
-	local cache_key = table.concat({HIGHLIGHT_MODE_NAMES[mode], rgb_hex}, "_")
+	local cache_key = table.concat({ HIGHLIGHT_MODE_NAMES[mode], rgb_hex }, "_")
 	local highlight_name = HIGHLIGHT_CACHE[cache_key]
 	-- Look up in our cache.
 	if not highlight_name then
 		if #rgb_hex == 3 then
-			rgb_hex = table.concat {
-				rgb_hex:sub(1,1):rep(2);
-				rgb_hex:sub(2,2):rep(2);
-				rgb_hex:sub(3,3):rep(2);
-			}
+			rgb_hex = table.concat({
+				rgb_hex:sub(1, 1):rep(2),
+				rgb_hex:sub(2, 2):rep(2),
+				rgb_hex:sub(3, 3):rep(2),
+			})
 		end
 		-- Create the highlight
 		highlight_name = make_highlight_name(rgb_hex, mode)
-		if mode == 'foreground' then
-			nvim.ex.highlight(highlight_name, "guifg=#"..rgb_hex)
+		if mode == "foreground" then
+			nvim.ex.highlight(highlight_name, "guifg=#" .. rgb_hex)
 		else
-			local r, g, b = rgb_hex:sub(1,2), rgb_hex:sub(3,4), rgb_hex:sub(5,6)
-			r, g, b = tonumber(r,16), tonumber(g,16), tonumber(b,16)
+			local r, g, b = rgb_hex:sub(1, 2), rgb_hex:sub(3, 4), rgb_hex:sub(5, 6)
+			r, g, b = tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
 			local fg_color
-			if color_is_bright(r,g,b) then
+			if color_is_bright(r, g, b) then
 				fg_color = "Black"
 			else
 				fg_color = "White"
 			end
-			nvim.ex.highlight(highlight_name, "guifg="..fg_color, "guibg=#"..rgb_hex)
+			nvim.ex.highlight(highlight_name, "guifg=" .. fg_color, "guibg=#" .. rgb_hex)
 		end
 		HIGHLIGHT_CACHE[cache_key] = highlight_name
 	end
@@ -373,22 +461,25 @@ end
 
 local MATCHER_CACHE = {}
 local function make_matcher(options)
-	local enable_names    = options.css or options.names
-	local enable_RGB      = options.css or options.RGB
-	local enable_RRGGBB   = options.css or options.RRGGBB
+	local enable_names = options.css or options.names
+	local enable_RGB = options.css or options.RGB
+	local enable_RRGGBB = options.css or options.RRGGBB
 	local enable_RRGGBBAA = options.css or options.RRGGBBAA
-	local enable_rgb      = options.css or options.css_fns or options.rgb_fn
-	local enable_hsl      = options.css or options.css_fns or options.hsl_fn
+	local enable_rgb = options.css or options.css_fns or options.rgb_fn
+	local enable_hsl = options.css or options.css_fns or options.hsl_fn
 
 	local matcher_key = bor(
-		lshift(enable_names    and 1 or 0, 0),
-		lshift(enable_RGB      and 1 or 0, 1),
-		lshift(enable_RRGGBB   and 1 or 0, 2),
+		lshift(enable_names and 1 or 0, 0),
+		lshift(enable_RGB and 1 or 0, 1),
+		lshift(enable_RRGGBB and 1 or 0, 2),
 		lshift(enable_RRGGBBAA and 1 or 0, 3),
-		lshift(enable_rgb      and 1 or 0, 4),
-		lshift(enable_hsl      and 1 or 0, 5))
+		lshift(enable_rgb and 1 or 0, 4),
+		lshift(enable_hsl and 1 or 0, 5)
+	)
 
-	if matcher_key == 0 then return end
+	if matcher_key == 0 then
+		return
+	end
 
 	local loop_parse_fn = MATCHER_CACHE[matcher_key]
 	if loop_parse_fn then
@@ -400,7 +491,7 @@ local function make_matcher(options)
 		table.insert(loop_matchers, color_name_parser)
 	end
 	do
-		local valid_lengths = {[3] = enable_RGB, [6] = enable_RRGGBB, [8] = enable_RRGGBBAA}
+		local valid_lengths = { [3] = enable_RGB, [6] = enable_RRGGBB, [8] = enable_RRGGBBAA }
 		local minlen, maxlen
 		for k, v in pairs(valid_lengths) do
 			if v then
@@ -411,7 +502,7 @@ local function make_matcher(options)
 		if minlen then
 			table.insert(loop_matchers, function(line, i)
 				local length, rgb_hex = rgb_hex_parser(line, i, minlen, maxlen)
-				if length and valid_lengths[length-1] then
+				if length and valid_lengths[length - 1] then
 					return length, rgb_hex
 				end
 			end)
@@ -428,7 +519,6 @@ local function make_matcher(options)
 	MATCHER_CACHE[matcher_key] = loop_parse_fn
 	return loop_parse_fn
 end
-
 --[[-- Highlight the buffer region.
 Highlight starting from `line_start` (0-indexed) for each line described by `lines` in the
 buffer `buf` and attach it to the namespace `ns`.
@@ -453,7 +543,7 @@ local function highlight_buffer(buf, ns, lines, line_start, options)
 			local length, rgb_hex = loop_parse_fn(line, i)
 			if length then
 				local highlight_name = create_highlight(rgb_hex, options)
-				nvim_buf_add_highlight(buf, ns, highlight_name, current_linenum, i-1, i+length-1)
+				nvim_buf_add_highlight(buf, ns, highlight_name, current_linenum, i - 1, i + length - 1)
 				i = i + length
 			else
 				i = i + 1
@@ -467,8 +557,8 @@ end
 ---
 
 local SETUP_SETTINGS = {
-	exclusions = {};
-	default_options = DEFAULT_OPTIONS;
+	exclusions = {},
+	default_options = DEFAULT_OPTIONS,
 }
 local BUFFER_OPTIONS = {}
 local FILETYPE_OPTIONS = {}
@@ -485,7 +575,7 @@ local function rehighlight_buffer(buf, options)
 end
 
 local function new_buffer_options(buf)
-	local filetype = nvim.buf_get_option(buf, 'filetype')
+	local filetype = nvim.buf_get_option(buf, "filetype")
 	return FILETYPE_OPTIONS[filetype] or SETUP_SETTINGS.default_options
 end
 
@@ -527,10 +617,10 @@ local function attach_to_buffer(buf, options)
 			nvim_buf_clear_namespace(buf, ns, firstline, new_lastline)
 			local lines = nvim_buf_get_lines(buf, firstline, new_lastline, false)
 			highlight_buffer(buf, ns, lines, firstline, BUFFER_OPTIONS[buf])
-		end;
+		end,
 		on_detach = function()
 			BUFFER_OPTIONS[buf] = nil
-		end;
+		end,
 	})
 end
 
@@ -544,7 +634,6 @@ local function detach_from_buffer(buf, ns)
 	nvim_buf_clear_namespace(buf, ns or DEFAULT_NAMESPACE, 0, -1)
 	BUFFER_OPTIONS[buf] = nil
 end
-
 
 --- Easy to use function if you want the full setup without fine grained control.
 -- Setup an autocmd which enables colorizing for the filetypes and options specified.
@@ -572,11 +661,11 @@ local function setup(filetypes, user_default_options)
 	end
 	FILETYPE_OPTIONS = {}
 	SETUP_SETTINGS = {
-		exclusions = {};
-		default_options = merge(DEFAULT_OPTIONS, user_default_options or {});
+		exclusions = {},
+		default_options = merge(DEFAULT_OPTIONS, user_default_options or {}),
 	}
 	-- Initialize this AFTER setting COLOR_NAME_SETTINGS
-	initialize_trie()
+	initialize_trie(SETUP_SETTINGS.default_options)
 	function COLORIZER_SETUP_HOOK()
 		local filetype = nvim.bo.filetype
 		if SETUP_SETTINGS.exclusions[filetype] then
@@ -593,19 +682,22 @@ local function setup(filetypes, user_default_options)
 		for k, v in pairs(filetypes) do
 			local filetype
 			local options = SETUP_SETTINGS.default_options
-			if type(k) == 'string' then
+			if type(k) == "string" then
 				filetype = k
-				if type(v) ~= 'table' then
-					nvim.err_writeln("colorizer: Invalid option type for filetype "..filetype)
+				if type(v) ~= "table" then
+					nvim.err_writeln("colorizer: Invalid option type for filetype " .. filetype)
 				else
 					options = merge(SETUP_SETTINGS.default_options, v)
-					assert(HIGHLIGHT_MODE_NAMES[options.mode or 'background'], "colorizer: Invalid mode: "..tostring(options.mode))
+					assert(
+						HIGHLIGHT_MODE_NAMES[options.mode or "background"],
+						"colorizer: Invalid mode: " .. tostring(options.mode)
+					)
 				end
 			else
 				filetype = v
 			end
 			-- Exclude
-			if filetype:sub(1,1) == '!' then
+			if filetype:sub(1, 1) == "!" then
 				SETUP_SETTINGS.exclusions[filetype:sub(2)] = true
 			else
 				FILETYPE_OPTIONS[filetype] = options
@@ -635,13 +727,12 @@ end
 
 --- @export
 return {
-	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE;
-	setup = setup;
-	is_buffer_attached = is_buffer_attached;
-	attach_to_buffer = attach_to_buffer;
-	detach_from_buffer = detach_from_buffer;
-	highlight_buffer = highlight_buffer;
-	reload_all_buffers = reload_all_buffers;
-	get_buffer_options = get_buffer_options;
+	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE,
+	setup = setup,
+	is_buffer_attached = is_buffer_attached,
+	attach_to_buffer = attach_to_buffer,
+	detach_from_buffer = detach_from_buffer,
+	highlight_buffer = highlight_buffer,
+	reload_all_buffers = reload_all_buffers,
+	get_buffer_options = get_buffer_options,
 }
-

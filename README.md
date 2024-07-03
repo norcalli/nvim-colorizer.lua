@@ -41,7 +41,7 @@ written with performance in mind and leveraging the excellent LuaJIT and a
 handwritten parser, updates can be done in real time. There are plugins such as
 [hexokinase](https://github.com/RRethy/vim-hexokinase) which have good
 performance, but it has some difficulty with becoming out of sync. The downside
-is that *this only works for Neovim*, and that will never change.
+is that _this only works for Neovim_, and that will never change.
 
 Additionally, having a Lua API that's available means users can use this as a
 library to do custom highlighting themselves.
@@ -50,20 +50,22 @@ library to do custom highlighting themselves.
 
 ```lua
   DEFAULT_OPTIONS = {
-	RGB      = true;         -- #RGB hex codes
-	RRGGBB   = true;         -- #RRGGBB hex codes
-	names    = true;         -- "Name" codes like Blue
-	RRGGBBAA = false;        -- #RRGGBBAA hex codes
-	rgb_fn   = false;        -- CSS rgb() and rgba() functions
-	hsl_fn   = false;        -- CSS hsl() and hsla() functions
-	css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
-	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
-	-- Available modes: foreground, background
-	mode     = 'background'; -- Set the display mode.
+ RGB      = true;         -- #RGB hex codes
+ RRGGBB   = true;         -- #RRGGBB hex codes
+ names    = true;         -- "Name" codes like Blue
+ lowercase = true;        --"name" codes like blue blueberry
+ RRGGBBAA = false;        -- #RRGGBBAA hex codes
+ rgb_fn   = false;        -- CSS rgb() and rgba() functions
+ hsl_fn   = false;        -- CSS hsl() and hsla() functions
+ css      = false;        -- Enable all CSS features: rgb_fn, hsl_fn, names, RGB, RRGGBB
+ css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
+ -- Available modes: foreground, background
+ mode     = 'background'; -- Set the display mode.
   }
 ```
 
 MODES:
+
 - `foreground`: sets the foreground text color.
 - `background`: sets the background text color.
 
@@ -109,7 +111,6 @@ require 'colorizer'.setup {
 }
 ```
 
-
 For lower level interface, see the [LuaDocs for API details](https://norcalli.github.io/luadoc/nvim-colorizer.lua/modules/colorizer.html) or use `:h colorizer.lua` once installed.
 
 ## Commands
@@ -138,7 +139,6 @@ buffer.
 
 Toggle highlighting of the current buffer.
 ```
-
 
 ## Caveats
 
