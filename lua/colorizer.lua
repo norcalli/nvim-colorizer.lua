@@ -65,6 +65,7 @@ local DEFAULT_OPTIONS = {
 	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
 	-- Available modes: foreground, background
 	mode     = 'background'; -- Set the display mode.
+	color_info = false;      -- Show color info floating window on CursorMoved.
 }
 
 -- -- TODO use rgb as the return value from the matcher functions
@@ -165,6 +166,69 @@ local function hsl_to_rgb(h, s, l)
 	end
 	local p = 2 * l - q
 	return 255*hue_to_rgb(p, q, h + 1/3), 255*hue_to_rgb(p, q, h), 255*hue_to_rgb(p, q, h - 1/3)
+end
+
+local function srgb_to_linear(c)
+	if c <= 0.04045 then
+		return c / 12.92
+	else
+		return ((c + 0.055) / 1.055) ^ 2.4
+	end
+end
+
+local function rgb_to_hsl(r, g, b)
+	r, g, b = r / 255, g / 255, b / 255
+	local mx = max(r, g, b)
+	local mn = min(r, g, b)
+	local h, s, l = 0, 0, (mx + mn) / 2
+	if mx ~= mn then
+		local d = mx - mn
+		s = l > 0.5 and d / (2 - mx - mn) or d / (mx + mn)
+		if mx == r then
+			h = (g - b) / d + (g < b and 6 or 0)
+		elseif mx == g then
+			h = (b - r) / d + 2
+		else
+			h = (r - g) / d + 4
+		end
+		h = h / 6
+	end
+	return h * 360, s * 100, l * 100
+end
+
+local function rgb_to_lch(r, g, b)
+	local rl, gl, bl = srgb_to_linear(r / 255), srgb_to_linear(g / 255), srgb_to_linear(b / 255)
+	local x = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+	local y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+	local z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+	x, y, z = x / 0.95047, y / 1.0, z / 1.08883
+	local function f(t)
+		if t > 0.008856 then
+			return t ^ (1/3)
+		else
+			return 7.787 * t + 16 / 116
+		end
+	end
+	x, y, z = f(x), f(y), f(z)
+	local L = 116 * y - 16
+	local a = 500 * (x - y)
+	local bv = 200 * (y - z)
+	local C = math.sqrt(a * a + bv * bv)
+	local H = math.atan2(bv, a) * 180 / math.pi
+	if H < 0 then H = H + 360 end
+	return L, C, H
+end
+
+local function rgb_to_oklab(r, g, b)
+	local rl, gl, bl = srgb_to_linear(r / 255), srgb_to_linear(g / 255), srgb_to_linear(b / 255)
+	local l = 0.4122214708 * rl + 0.5363325363 * gl + 0.0514459929 * bl
+	local m = 0.2119034982 * rl + 0.6806995451 * gl + 0.1073969566 * bl
+	local s = 0.0883024619 * rl + 0.2817188376 * gl + 0.6299787005 * bl
+	l, m, s = l ^ (1/3), m ^ (1/3), s ^ (1/3)
+	local L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+	local A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+	local B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+	return L, A, B
 end
 
 local function color_name_parser(line, i)
@@ -473,6 +537,208 @@ local SETUP_SETTINGS = {
 local BUFFER_OPTIONS = {}
 local FILETYPE_OPTIONS = {}
 
+local COLOR_INFO_STATE = {}
+
+local function close_color_info(buf)
+	local state = COLOR_INFO_STATE[buf]
+	if not state then return end
+	if state.win and vim.api.nvim_win_is_valid(state.win) then
+		vim.api.nvim_win_close(state.win, true)
+	end
+	state.win = nil
+	state.win_buf = nil
+	state.cache_key = nil
+end
+
+local function show_color_info(buf, r, g, b, alpha)
+	local h, s, l = rgb_to_hsl(r, g, b)
+	local lch_l, lch_c, lch_h = rgb_to_lch(r, g, b)
+	local ok_l, ok_a, ok_b = rgb_to_oklab(r, g, b)
+
+	local rgb_hex = string.format("%02X%02X%02X", r, g, b)
+
+	local lines
+	if alpha then
+		local alpha_hex = string.format("%02X", floor(alpha * 255))
+		local alpha_str = string.format("%g", alpha)
+		lines = {
+			string.format("%-7s#%s%s", "HEX", rgb_hex, alpha_hex),
+			string.format("%-7srgba(%d, %d, %d, %s)", "RGB", r, g, b, alpha_str),
+			string.format("%-7shsla(%.0f, %.0f%%, %.0f%%, %s)", "HSL", h, s, l, alpha_str),
+			string.format("%-7slch(%.1f %.1f %.1f / %s)", "LCH", lch_l, lch_c, lch_h, alpha_str),
+			string.format("%-7soklab(%.3f %.3f %.3f / %s)", "OKLAB", ok_l, ok_a, ok_b, alpha_str),
+		}
+	else
+		lines = {
+			string.format("%-7s#%s", "HEX", rgb_hex),
+			string.format("%-7srgb(%d, %d, %d)", "RGB", r, g, b),
+			string.format("%-7shsl(%.0f, %.0f%%, %.0f%%)", "HSL", h, s, l),
+			string.format("%-7slch(%.1f, %.1f, %.1f)", "LCH", lch_l, lch_c, lch_h),
+			string.format("%-7soklab(%.3f, %.3f, %.3f)", "OKLAB", ok_l, ok_a, ok_b),
+		}
+	end
+
+	local width = 0
+	for _, line in ipairs(lines) do
+		width = max(width, #line)
+	end
+
+	local win_buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_lines(win_buf, 0, -1, false, lines)
+	vim.api.nvim_buf_set_option(win_buf, 'bufhidden', 'wipe')
+
+	local space_above = nvim.fn.winline() - 1
+	local row_offset = (space_above >= #lines + 2) and (-#lines - 2) or 2
+
+	local ok, win = pcall(vim.api.nvim_open_win, win_buf, false, {
+		relative = 'cursor';
+		row = row_offset;
+		col = 0;
+		width = width;
+		height = #lines;
+		style = 'minimal';
+		border = 'rounded';
+		focusable = true;
+	})
+
+	if not ok then
+		pcall(vim.api.nvim_buf_delete, win_buf, { force = true })
+		return
+	end
+
+	if not COLOR_INFO_STATE[buf] then
+		COLOR_INFO_STATE[buf] = {}
+	end
+	COLOR_INFO_STATE[buf].win = win
+	COLOR_INFO_STATE[buf].win_buf = win_buf
+end
+
+local function handle_color_info(buf)
+	if not BUFFER_OPTIONS[buf] then
+		close_color_info(buf)
+		return
+	end
+	local options = BUFFER_OPTIONS[buf]
+	if not options.color_info then return end
+
+	initialize_trie()
+	local loop_parse_fn = make_matcher(options)
+	if not loop_parse_fn then
+		close_color_info(buf)
+		return
+	end
+
+	local cursor = vim.api.nvim_win_get_cursor(0)
+	local col = cursor[2]
+	local line = nvim_buf_get_lines(buf, cursor[1] - 1, cursor[1], false)[1]
+	if not line then
+		close_color_info(buf)
+		return
+	end
+
+	local found_hex = nil
+	local match_i, match_length
+	local i = 1
+	while i < #line do
+		local length, rgb_hex = loop_parse_fn(line, i)
+		if length then
+			if col >= i - 1 and col < i - 1 + length then
+				found_hex = rgb_hex
+				match_i = i
+				match_length = length
+				break
+			end
+			i = i + length
+		else
+			i = i + 1
+		end
+	end
+
+	if found_hex then
+		local r, g, b, alpha
+		local match_text = line:sub(match_i, match_i + match_length - 1)
+
+		if match_text:match("^rgba%(") then
+			local mr, mg, mb, ma = match_text:match(
+				"^rgba%(%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*(%d+%%?)%s*,%s*([.%d]+)%s*%)")
+			if mr then
+				r = percent_or_hex(mr)
+				g = percent_or_hex(mg)
+				b = percent_or_hex(mb)
+				alpha = tonumber(ma)
+				if r and g and b then
+					r, g, b = floor(r), floor(g), floor(b)
+				else
+					r, g, b, alpha = nil, nil, nil, nil
+				end
+			end
+		elseif match_text:match("^hsla%(") then
+			local mh, ms, ml, ma = match_text:match(
+				"^hsla%(%s*(%d+)%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([.%d]+)%s*%)")
+			if mh then
+				alpha = tonumber(ma)
+				r, g, b = hsl_to_rgb(tonumber(mh)/360, tonumber(ms)/100, tonumber(ml)/100)
+				if r then
+					r, g, b = floor(r), floor(g), floor(b)
+				else
+					alpha = nil
+				end
+			end
+		elseif match_text:sub(1, 1) == "#" and match_length == 9 then
+			r = tonumber(match_text:sub(2, 3), 16)
+			g = tonumber(match_text:sub(4, 5), 16)
+			b = tonumber(match_text:sub(6, 7), 16)
+			alpha = tonumber(match_text:sub(8, 9), 16) / 255
+		end
+
+		if not r then
+			if #found_hex == 3 then
+				found_hex = found_hex:sub(1,1):rep(2) .. found_hex:sub(2,2):rep(2) .. found_hex:sub(3,3):rep(2)
+			end
+			found_hex = found_hex:lower()
+			r = tonumber(found_hex:sub(1, 2), 16)
+			g = tonumber(found_hex:sub(3, 4), 16)
+			b = tonumber(found_hex:sub(5, 6), 16)
+		end
+
+		local cache_key = string.format("%d,%d,%d,%s", r, g, b, alpha and string.format("%g", alpha) or "")
+		local state = COLOR_INFO_STATE[buf]
+		if state and state.cache_key == cache_key and state.win and vim.api.nvim_win_is_valid(state.win) then
+			return
+		end
+		close_color_info(buf)
+		show_color_info(buf, r, g, b, alpha)
+		if COLOR_INFO_STATE[buf] then
+			COLOR_INFO_STATE[buf].cache_key = cache_key
+		end
+	else
+		close_color_info(buf)
+	end
+end
+
+local function setup_color_info_autocmd(buf)
+	local group = "ColorizerColorInfo" .. buf
+	vim.api.nvim_command("augroup " .. group)
+	vim.api.nvim_command("autocmd!")
+	vim.api.nvim_command(string.format(
+		"autocmd CursorMoved <buffer=%d> lua require'colorizer'._color_info_handler(%d)", buf, buf))
+	vim.api.nvim_command(string.format(
+		"autocmd BufLeave <buffer=%d> lua require'colorizer'._close_color_info(%d)", buf, buf))
+	vim.api.nvim_command("augroup END")
+end
+
+local function teardown_color_info_autocmd(buf)
+	close_color_info(buf)
+	pcall(function()
+		local group = "ColorizerColorInfo" .. buf
+		vim.api.nvim_command("augroup " .. group)
+		vim.api.nvim_command("autocmd!")
+		vim.api.nvim_command("augroup END")
+		vim.api.nvim_command("augroup! " .. group)
+	end)
+	COLOR_INFO_STATE[buf] = nil
+end
+
 local function rehighlight_buffer(buf, options)
 	local ns = DEFAULT_NAMESPACE
 	if buf == 0 or buf == nil then
@@ -514,6 +780,11 @@ local function attach_to_buffer(buf, options)
 	end
 	BUFFER_OPTIONS[buf] = options
 	rehighlight_buffer(buf, options)
+	if options.color_info then
+		setup_color_info_autocmd(buf)
+	elseif COLOR_INFO_STATE[buf] then
+		teardown_color_info_autocmd(buf)
+	end
 	if already_attached then
 		return
 	end
@@ -529,6 +800,7 @@ local function attach_to_buffer(buf, options)
 			highlight_buffer(buf, ns, lines, firstline, BUFFER_OPTIONS[buf])
 		end;
 		on_detach = function()
+			teardown_color_info_autocmd(buf)
 			BUFFER_OPTIONS[buf] = nil
 		end;
 	})
@@ -541,6 +813,7 @@ local function detach_from_buffer(buf, ns)
 	if buf == 0 or buf == nil then
 		buf = nvim_get_current_buf()
 	end
+	teardown_color_info_autocmd(buf)
 	nvim_buf_clear_namespace(buf, ns or DEFAULT_NAMESPACE, 0, -1)
 	BUFFER_OPTIONS[buf] = nil
 end
@@ -633,6 +906,24 @@ local function get_buffer_options(buf)
 	return merge({}, BUFFER_OPTIONS[buf])
 end
 
+--- Toggle color_info for the current buffer.
+-- @tparam[opt=0|nil] integer buf A value of 0 or nil implies the current buffer.
+local function toggle_color_info(buf)
+	if buf == 0 or buf == nil then
+		buf = nvim_get_current_buf()
+	end
+	local options = BUFFER_OPTIONS[buf]
+	if not options then return end
+	options = merge({}, options)
+	options.color_info = not options.color_info
+	BUFFER_OPTIONS[buf] = options
+	if options.color_info then
+		setup_color_info_autocmd(buf)
+	else
+		teardown_color_info_autocmd(buf)
+	end
+end
+
 --- @export
 return {
 	DEFAULT_NAMESPACE = DEFAULT_NAMESPACE;
@@ -643,5 +934,8 @@ return {
 	highlight_buffer = highlight_buffer;
 	reload_all_buffers = reload_all_buffers;
 	get_buffer_options = get_buffer_options;
+	toggle_color_info = toggle_color_info;
+	_color_info_handler = handle_color_info;
+	_close_color_info = close_color_info;
 }
 
