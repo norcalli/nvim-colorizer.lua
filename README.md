@@ -60,6 +60,7 @@ library to do custom highlighting themselves.
 	css_fn   = false;        -- Enable all CSS *functions*: rgb_fn, hsl_fn
 	-- Available modes: foreground, background
 	mode     = 'background'; -- Set the display mode.
+	color_info = false;      -- Show color info floating window on hover.
   }
 ```
 
@@ -110,6 +111,26 @@ require 'colorizer'.setup {
 ```
 
 
+### Color Info
+
+When `color_info` is enabled, moving the cursor over a highlighted color will
+show a floating window with the color value in multiple formats: HEX, RGB, HSL,
+LCH, and OKLAB. You can click the floating window to focus it and copy the
+representation you need.
+
+```lua
+-- Enable color_info for all filetypes
+require 'colorizer'.setup({
+  '*';
+}, { color_info = true })
+
+-- Or enable it only for specific filetypes
+require 'colorizer'.setup {
+  css = { color_info = true; rgb_fn = true; };
+  html = { color_info = true; };
+}
+```
+
 For lower level interface, see the [LuaDocs for API details](https://norcalli.github.io/luadoc/nvim-colorizer.lua/modules/colorizer.html) or use `:h colorizer.lua` once installed.
 
 ## Commands
@@ -137,6 +158,12 @@ buffer.
 |:ColorizerToggle|
 
 Toggle highlighting of the current buffer.
+
+|:ColorizerColorInfoToggle|
+
+Toggle the color info floating window for the current buffer. When enabled,
+moving the cursor over a color will show its value in HEX, RGB, HSL, LCH,
+and OKLAB. The buffer must already be attached to the colorizer.
 ```
 
 
